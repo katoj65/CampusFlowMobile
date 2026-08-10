@@ -1,0 +1,584 @@
+<template>
+  <ion-page>
+    <ion-content :fullscreen="true" class="orders-content">
+      <div class="page-header">
+        <h1>{{ $t('nav.orders') }}</h1>
+        <p class="page-sub">{{ $t('orders.pageSub') }}</p>
+      </div>
+
+      <div class="segment-sticky">
+        <ion-segment v-model="activeSegment" class="orders-segment" mode="ios">
+          <ion-segment-button value="active">
+            <ion-label>{{ activeLabel }}</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="history">
+            <ion-label>{{ historyLabel }}</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </div>
+
+      <div class="segment-body">
+        <template v-if="activeSegment === 'active'">
+          <div v-if="activeOrder" class="active-order">
+            <div class="panel-card order-status-card">
+              <div class="panel-header">
+                <div>
+                  <h2>{{ t('dashboard.orderNumber', { id: activeOrder.id }) }}</h2>
+                  <p class="panel-sub">{{ t('orders.placedAt', { time: activeOrder.placedAt }) }}</p>
+                </div>
+                <span class="status-badge" :class="`status-${activeOrder.status}`">
+                  {{ statusLabel(activeOrder.status) }}
+                </span>
+              </div>
+
+              <div class="stepper">
+                <template v-for="(step, i) in steps" :key="step.key">
+                  <div class="step" :class="stepClass(i)">
+                    <div class="step-icon">
+                      <ion-icon :icon="i < currentStepIndex ? checkmarkCircle : ellipseOutline" />
+                    </div>
+                    <span>{{ step.label }}</span>
+                  </div>
+                  <div v-if="i < steps.length - 1" class="step-line" :class="{ done: i < currentStepIndex }"></div>
+                </template>
+              </div>
+
+              <div class="pickup-body">
+                <div class="pickup-time">
+                  <ion-icon :icon="timeOutline" />
+                  <span>{{ activeOrder.pickupSlot }}</span>
+                </div>
+                <div class="pickup-location">
+                  <ion-icon :icon="locationOutline" />
+                  <span>{{ activeOrder.location }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-card code-card">
+              <ion-icon :icon="qrCodeOutline" class="code-icon" />
+              <p class="code-label">{{ $t('orders.showCodeAtCounter') }}</p>
+              <p class="code-value">{{ activeOrder.code }}</p>
+            </div>
+
+            <div class="panel-card items-card">
+              <h2>{{ $t('orders.orderSummary') }}</h2>
+              <div class="item-row" v-for="item in activeOrder.items" :key="item.name">
+                <span>{{ item.qty }}× {{ item.name }}</span>
+                <span>{{ formatCurrency(item.price * item.qty) }}</span>
+              </div>
+              <div class="item-row total-row">
+                <span>{{ $t('orders.total') }}</span>
+                <span>{{ formatCurrency(activeOrder.total) }}</span>
+              </div>
+            </div>
+
+            <button class="cancel-btn" @click="showCancelAlert = true">
+              <ion-icon :icon="closeCircleOutline" />
+              {{ $t('orders.cancelOrder') }}
+            </button>
+          </div>
+
+          <div v-else class="empty-state">
+            <ion-icon :icon="receiptOutline" />
+            <h3>{{ $t('orders.noActiveOrders') }}</h3>
+            <p>{{ $t('orders.browseMenuHint') }}</p>
+            <button class="primary-btn" @click="goToMenu">{{ $t('orders.browseMenu') }}</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <div v-if="orderHistory.length" class="history-list">
+            <div class="panel-card history-card" v-for="order in orderHistory" :key="order.id">
+              <div class="panel-header">
+                <div>
+                  <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
+                  <p class="panel-sub">{{ order.date }}</p>
+                </div>
+                <span class="status-badge" :class="`status-${order.status}`">
+                  {{ statusLabel(order.status) }}
+                </span>
+              </div>
+              <p class="history-items">
+                {{ order.items.map((i) => `${i.qty}× ${i.name}`).join(', ') }}
+              </p>
+              <div class="history-footer">
+                <span class="history-total">{{ formatCurrency(order.total) }}</span>
+                <button class="reorder-btn" @click="onReorder(order)">
+                  <ion-icon :icon="refreshOutline" />
+                  {{ $t('orders.reorder') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="empty-state">
+            <ion-icon :icon="receiptOutline" />
+            <h3>{{ $t('orders.noPastOrders') }}</h3>
+            <p>{{ $t('orders.historyHint') }}</p>
+          </div>
+        </template>
+      </div>
+
+      <ion-alert
+        :is-open="showCancelAlert"
+        :header="t('orders.cancelConfirmHeader')"
+        :message="t('orders.cancelConfirmMessage')"
+        :buttons="cancelAlertButtons"
+        @didDismiss="showCancelAlert = false"
+      ></ion-alert>
+
+      <ion-toast
+        :is-open="showToast"
+        :message="toastMessage"
+        :duration="1600"
+        position="top"
+        @didDismiss="showToast = false"
+      ></ion-toast>
+    </ion-content>
+  </ion-page>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { IonPage, IonContent, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonAlert, IonToast } from '@ionic/vue';
+import {
+  timeOutline,
+  locationOutline,
+  qrCodeOutline,
+  checkmarkCircle,
+  ellipseOutline,
+  closeCircleOutline,
+  receiptOutline,
+  refreshOutline,
+} from 'ionicons/icons';
+import { useOrders, type OrderStatus, type PastOrder } from '@/composables/useOrders';
+import { useCart } from '@/composables/useCart';
+import { meals as menuItems } from '@/data/menu';
+import { formatCurrency } from '@/utils/currency';
+
+const router = useRouter();
+const { t } = useI18n();
+const { activeOrder, orderHistory, cancelActiveOrder } = useOrders();
+const cart = useCart();
+
+const activeSegment = ref<'active' | 'history'>('active');
+
+const activeLabel = computed(() => (activeOrder.value ? t('orders.activeWithCount') : t('orders.active')));
+const historyLabel = computed(() =>
+  orderHistory.length ? t('orders.historyWithCount', { count: orderHistory.length }) : t('orders.history')
+);
+
+const steps = computed(() => [
+  { key: 'placed', label: t('orders.stepPlaced') },
+  { key: 'preparing', label: t('orders.stepPreparing') },
+  { key: 'ready', label: t('orders.stepReady') },
+  { key: 'completed', label: t('orders.stepPickedUp') },
+]);
+
+const statusOrder: OrderStatus[] = ['placed', 'preparing', 'ready', 'completed'];
+
+const currentStepIndex = computed(() => {
+  if (!activeOrder.value) return 0;
+  const index = statusOrder.indexOf(activeOrder.value.status);
+  return index === -1 ? 0 : index;
+});
+
+function stepClass(i: number) {
+  if (i < currentStepIndex.value) return 'done';
+  if (i === currentStepIndex.value) return 'active';
+  return 'upcoming';
+}
+
+function statusLabel(status: OrderStatus) {
+  const labels: Record<OrderStatus, string> = {
+    placed: t('orders.statusPlaced'),
+    preparing: t('orders.statusPreparing'),
+    ready: t('orders.statusReady'),
+    completed: t('orders.statusCompleted'),
+    cancelled: t('orders.statusCancelled'),
+  };
+  return labels[status];
+}
+
+function goToMenu() {
+  router.push('/tabs/tab2');
+}
+
+const showToast = ref(false);
+const toastMessage = ref('');
+
+function onReorder(order: PastOrder) {
+  for (const item of order.items) {
+    const meal = menuItems.find((m) => item.name.startsWith(m.name));
+    cart.addToCart({
+      mealId: meal?.id ?? 0,
+      name: item.name,
+      image: meal?.image ?? menuItems[0].image,
+      unitPrice: item.price,
+      qty: item.qty,
+      summary: '',
+    });
+  }
+  toastMessage.value = t('orders.itemsAddedToCart', { count: order.items.length }, order.items.length);
+  showToast.value = true;
+  setTimeout(() => router.push('/cart'), 500);
+}
+
+const showCancelAlert = ref(false);
+
+const cancelAlertButtons = computed(() => [
+  { text: t('orders.keepOrder'), role: 'cancel' },
+  {
+    text: t('orders.cancelOrder'),
+    role: 'destructive',
+    handler: () => {
+      cancelActiveOrder();
+      toastMessage.value = t('orders.orderCancelled');
+      showToast.value = true;
+    },
+  },
+]);
+</script>
+
+<style scoped>
+.orders-content {
+  --background: var(--ion-color-step-50, #f4f5f8);
+}
+
+.page-header {
+  padding: calc(20px + env(safe-area-inset-top)) 16px 4px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.page-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+}
+
+.segment-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ion-color-step-50, #f4f5f8);
+  padding: 12px 16px;
+}
+
+.orders-segment {
+  --background: var(--ion-color-step-100, #e9eaee);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 8px 24px -18px rgba(0, 0, 0, 0.4);
+}
+
+.orders-segment ion-segment-button {
+  --color: var(--ion-color-medium);
+  --color-checked: #fff;
+  --indicator-color: #ff6b35;
+  --indicator-box-shadow: 0 4px 10px -2px rgba(255, 107, 53, 0.55);
+  --border-radius: 9px;
+  min-height: 40px;
+  font-weight: 600;
+  text-transform: none;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.segment-body {
+  padding: 4px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.active-order,
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel-card {
+  background: var(--ion-card-background, #fff);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.35);
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panel-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.status-badge {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-placed {
+  background: rgba(91, 141, 239, 0.14);
+  color: #5b8def;
+}
+
+.status-preparing {
+  background: rgba(255, 159, 28, 0.16);
+  color: #ff9f1c;
+}
+
+.status-ready {
+  background: rgba(46, 196, 182, 0.16);
+  color: #2ec4b6;
+}
+
+.status-completed {
+  background: rgba(46, 196, 182, 0.16);
+  color: #2ec4b6;
+}
+
+.status-cancelled {
+  background: rgba(255, 59, 48, 0.14);
+  color: #ff3b30;
+}
+
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.step span {
+  font-size: 10px;
+  color: var(--ion-color-medium);
+  text-align: center;
+}
+
+.step-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--ion-color-step-300, #ccc);
+}
+
+.step.done .step-icon {
+  color: #2ec4b6;
+}
+
+.step.active .step-icon {
+  color: #ff6b35;
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.16);
+  border-radius: 50%;
+}
+
+.step.done span,
+.step.active span {
+  color: var(--ion-text-color);
+  font-weight: 600;
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--ion-color-step-150, #e8e8e8);
+  margin-top: 13px;
+}
+
+.step-line.done {
+  background: #2ec4b6;
+}
+
+.pickup-body {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pickup-time,
+.pickup-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.pickup-time ion-icon,
+.pickup-location ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-medium);
+}
+
+.code-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 1.5px dashed var(--ion-color-step-200, #ddd);
+}
+
+.code-icon {
+  font-size: 28px;
+  color: #ff6b35;
+}
+
+.code-label {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.code-value {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.items-card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--ion-color-step-100, #eee);
+}
+
+.item-row:first-of-type {
+  border-top: none;
+}
+
+.total-row {
+  margin-top: 4px;
+  border-top: 1.5px solid var(--ion-color-step-150, #e8e8e8);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 59, 48, 0.35);
+  background: rgba(255, 59, 48, 0.08);
+  color: #ff3b30;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.history-items {
+  margin: 10px 0 12px;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+}
+
+.history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.history-total {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.reorder-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: rgba(255, 107, 53, 0.12);
+  color: #ff6b35;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 999px;
+}
+
+.primary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 14px;
+  background: #ff6b35;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+.empty-state ion-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.empty-state h3 {
+  margin: 0 0 4px;
+  color: var(--ion-text-color);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
+</style>
