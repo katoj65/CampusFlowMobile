@@ -76,7 +76,7 @@
           <div class="panel-card summary-card">
             <div class="item-row" v-for="line in cart.lines" :key="line.lineId">
               <span>{{ line.qty }}× {{ line.name }}</span>
-              <span>{{ formatCurrency(line.unitPrice * line.qty) }}</span>
+              <span>{{ formatCurrency((line.unitPrice + line.extrasTotal) * line.qty) }}</span>
             </div>
             <div class="item-row total-row">
               <span>{{ $t('orders.total') }}</span>

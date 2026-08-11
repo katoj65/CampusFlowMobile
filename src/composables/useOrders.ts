@@ -90,8 +90,11 @@ function generateCode(): string {
 }
 
 async function loadItemsFor(orderId: number): Promise<OrderItem[]> {
-  const { data } = await supabase.from('order_items').select('name, qty, unit_price').eq('order_id', orderId);
-  return (data ?? []).map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price }));
+  const { data } = await supabase
+    .from('order_items')
+    .select('name, qty, unit_price, extras_total_price')
+    .eq('order_id', orderId);
+  return (data ?? []).map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price + row.extras_total_price }));
 }
 
 async function fetchOrders() {
@@ -157,7 +160,7 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
   if (!userData.user) throw new Error('Not signed in');
 
   const { selectedLocationId } = usePickupLocation();
-  const total = cartLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
+  const total = cartLines.reduce((sum, line) => sum + (line.unitPrice + line.extrasTotal) * line.qty, 0);
   const code = generateCode();
 
   const { data: order, error } = await supabase
@@ -194,7 +197,7 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
     pickupSlot: order.pickup_slot,
     location: locationLabel(order.pickup_location_id),
     status: order.status,
-    items: itemRows.map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price })),
+    items: itemRows.map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price + row.extras_total_price })),
     total: order.total,
     paymentMethod: order.payment_method,
     code: order.code,

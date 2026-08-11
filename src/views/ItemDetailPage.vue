@@ -197,26 +197,24 @@ function toggleIngredient(name: string) {
   includedIngredients.value = new Set(includedIngredients.value);
 }
 
+/** Base price only — meal price plus size, no extras. Extras are tracked
+ * separately (extrasTotal) and added back in wherever a paid total is shown. */
 const unitPrice = computed(() => {
   if (!meal.value) return 0;
   let price = meal.value.price;
   if (meal.value.customizable) {
     const size = sizeOptions.find((o) => o.id === selectedSize.value);
     price += size?.priceDelta ?? 0;
-    for (const extraId of selectedExtras.value) {
-      const extra = extras.find((e) => e.id === extraId);
-      price += extra?.priceDelta ?? 0;
-    }
   }
   return price;
 });
-
-const totalPrice = computed(() => unitPrice.value * qty.value);
 
 const selectedExtraOptions = computed(() =>
   meal.value?.customizable ? extras.filter((e) => selectedExtras.value.has(e.id)) : []
 );
 const extrasTotal = computed(() => selectedExtraOptions.value.reduce((sum, e) => sum + e.priceDelta, 0));
+
+const totalPrice = computed(() => (unitPrice.value + extrasTotal.value) * qty.value);
 
 const customizationSummary = computed(() => {
   if (!meal.value || !meal.value.customizable) return '';
