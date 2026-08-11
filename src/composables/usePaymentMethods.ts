@@ -128,5 +128,5 @@ const defaultMethod = computed(() => methods.find((m) => m.isDefault) ?? methods
 
 export function usePaymentMethods() {
   if (!loaded.value) fetchMethods();
-  return { methods, setDefault, removeMethod, addCard, defaultMethod, fetchMethods };
+  return { methods, loaded, setDefault, removeMethod, addCard, defaultMethod, fetchMethods };
 }

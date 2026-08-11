@@ -105,7 +105,7 @@
         </section>
       </div>
 
-      <div class="item-footer">
+      <div class="item-footer" slot="fixed">
         <button class="add-to-cart-btn" @click="onAddToCart">
           <span>{{ $t('item.addToCart') }}</span>
           <span>{{ formatCurrency(totalPrice) }}</span>
@@ -119,6 +119,18 @@
         position="top"
         @didDismiss="showToast = false"
       ></ion-toast>
+    </ion-content>
+
+    <ion-content :fullscreen="true" v-else-if="menuLoading">
+      <div class="item-hero">
+        <ion-skeleton-text :animated="true" style="width: 100%; height: 100%; margin: 0; border-radius: 0"></ion-skeleton-text>
+      </div>
+      <div class="item-body">
+        <ion-skeleton-text :animated="true" style="width: 60%; height: 22px"></ion-skeleton-text>
+        <ion-skeleton-text :animated="true" style="width: 40%; height: 14px; margin-top: 10px"></ion-skeleton-text>
+        <ion-skeleton-text :animated="true" style="width: 90%; height: 14px; margin-top: 18px"></ion-skeleton-text>
+        <ion-skeleton-text :animated="true" style="width: 75%; height: 14px; margin-top: 8px"></ion-skeleton-text>
+      </div>
     </ion-content>
 
     <ion-content :fullscreen="true" v-else>
@@ -135,7 +147,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonToast, IonSkeletonText } from '@ionic/vue';
 import {
   chevronBackOutline,
   flameOutline,
@@ -155,7 +167,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const cart = useCart();
-const { findMeal } = useMenu();
+const { findMeal, loading: menuLoading } = useMenu();
 
 const meal = computed(() => findMeal(Number(route.params.id)));
 

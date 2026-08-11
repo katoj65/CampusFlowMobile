@@ -14,6 +14,7 @@ export interface OrderItem {
 export interface ActiveOrder {
   id: number;
   placedAt: string;
+  placedAtIso: string;
   pickupSlot: string;
   location: string;
   status: OrderStatus;
@@ -37,6 +38,30 @@ export interface PastOrder {
 const activeOrder = ref<ActiveOrder | null>(null);
 const orderHistory = reactive<PastOrder[]>([]);
 const loaded = ref(false);
+const cancellationWindowMinutes = ref(30);
+let cancellationPolicyLoaded = false;
+
+async function fetchCancellationPolicy() {
+  if (cancellationPolicyLoaded) return;
+  cancellationPolicyLoaded = true;
+  const { data } = await supabase
+    .from('order_cancellation')
+    .select('minutes')
+    .eq('status', 'active')
+    .order('id', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (data) cancellationWindowMinutes.value = data.minutes;
+}
+
+/** Mirrors the server-side RLS rule (orders can only be cancelled while
+ * placed/preparing and within the active cancellation window) so the Cancel
+ * button doesn't linger past the point where cancelling would actually work. */
+function canCancelOrder(order: Pick<ActiveOrder, 'status' | 'placedAtIso'>): boolean {
+  if (order.status !== 'placed' && order.status !== 'preparing') return false;
+  const elapsedMinutes = (Date.now() - new Date(order.placedAtIso).getTime()) / 60000;
+  return elapsedMinutes < cancellationWindowMinutes.value;
+}
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -85,6 +110,7 @@ async function fetchOrders() {
     activeOrder.value = {
       id: active.id,
       placedAt: formatPlacedAt(active.placed_at),
+      placedAtIso: active.placed_at,
       pickupSlot: active.pickup_slot,
       location: locationLabel(active.pickup_location_id),
       status: active.status,
@@ -162,6 +188,7 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
   const newActive: ActiveOrder = {
     id: order.id,
     placedAt: formatPlacedAt(order.placed_at),
+    placedAtIso: order.placed_at,
     pickupSlot: order.pickup_slot,
     location: locationLabel(order.pickup_location_id),
     status: order.status,
@@ -186,6 +213,7 @@ async function fetchOrderById(id: number): Promise<ActiveOrder | null> {
   return {
     id: row.id,
     placedAt: formatPlacedAt(row.placed_at),
+    placedAtIso: row.placed_at,
     pickupSlot: row.pickup_slot,
     location: locationLabel(row.pickup_location_id),
     status: row.status,
@@ -214,5 +242,17 @@ export function useOrders() {
       if (userData.user) subscribeToOrders(userData.user.id);
     });
   }
-  return { activeOrder, orderHistory, placeOrder, cancelActiveOrder, cancelOrder, fetchOrderById, fetchOrders };
+  fetchCancellationPolicy();
+  return {
+    activeOrder,
+    orderHistory,
+    loaded,
+    cancellationWindowMinutes,
+    canCancelOrder,
+    placeOrder,
+    cancelActiveOrder,
+    cancelOrder,
+    fetchOrderById,
+    fetchOrders,
+  };
 }

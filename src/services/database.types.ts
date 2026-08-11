@@ -200,6 +200,18 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      order_cancellation: {
+        Row: {
+          id: number;
+          title: string;
+          description: string;
+          minutes: number;
+          status: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       cart_items: {
         Row: {
           id: number;

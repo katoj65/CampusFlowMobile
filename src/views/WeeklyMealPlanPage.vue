@@ -13,11 +13,12 @@
 
         <div class="summary-card">
           <div class="summary-top">
-            <strong>{{ t('weeklyPlan.daysPlanned', { count: plannedCount }) }}</strong>
+            <ion-skeleton-text v-if="planLoading" :animated="true" style="width: 140px; height: 14px"></ion-skeleton-text>
+            <strong v-else>{{ t('weeklyPlan.daysPlanned', { count: plannedCount }) }}</strong>
             <ion-icon :icon="calendarOutline" />
           </div>
           <div class="summary-track">
-            <div class="summary-fill" :style="{ width: (plannedCount / 7) * 100 + '%' }"></div>
+            <div class="summary-fill" :style="{ width: (planLoading ? 0 : plannedCount / 7) * 100 + '%' }"></div>
           </div>
         </div>
 
@@ -47,7 +48,16 @@
             <ion-icon :icon="calendarOutline" />
             {{ $t('weeklyPlan.days') }}
           </h2>
-          <div class="day-list">
+          <div class="day-list" v-if="planLoading">
+            <div class="day-row" v-for="i in 7" :key="i">
+              <ion-skeleton-text :animated="true" style="width: 34px; height: 34px; border-radius: 50%; margin: 0"></ion-skeleton-text>
+              <div class="day-info">
+                <ion-skeleton-text :animated="true" style="width: 60px; height: 12px"></ion-skeleton-text>
+                <ion-skeleton-text :animated="true" style="width: 110px; height: 11px; margin-top: 5px"></ion-skeleton-text>
+              </div>
+            </div>
+          </div>
+          <div class="day-list" v-else>
             <div class="day-row" v-for="day in draftDays" :key="day.dayOfWeek">
               <div class="day-badge" :class="{ filled: day.mealId }">{{ dayInitial(day.dayOfWeek) }}</div>
               <div class="day-info">
@@ -59,6 +69,8 @@
               <ion-icon :icon="chevronForwardOutline" class="row-chevron" />
               <ion-select
                 class="meal-select-overlay"
+                interface="popover"
+                :interface-options="{ cssClass: 'meal-popover' }"
                 :value="day.mealId"
                 :aria-label="$t(`weeklyPlan.day.${dayKey(day.dayOfWeek)}`)"
                 @ionChange="day.mealId = $event.detail.value"
@@ -73,7 +85,7 @@
         </section>
       </div>
 
-      <div class="save-footer">
+      <div class="save-footer" slot="fixed">
         <button class="save-btn" :disabled="!isDirty || saving" @click="onSave">
           <ion-spinner v-if="saving" name="crescent" />
           <span v-else>{{ isDirty ? $t('weeklyPlan.savePlan') : $t('weeklyPlan.saved') }}</span>
@@ -95,7 +107,18 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast, IonSpinner, IonSelect, IonSelectOption, IonPopover, IonDatetime } from '@ionic/vue';
+import {
+  IonPage,
+  IonContent,
+  IonIcon,
+  IonToast,
+  IonSpinner,
+  IonSelect,
+  IonSelectOption,
+  IonPopover,
+  IonDatetime,
+  IonSkeletonText,
+} from '@ionic/vue';
 import { chevronBackOutline, timeOutline, calendarOutline, alarmOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useWeeklyMealPlan, type DayPlan } from '@/composables/useWeeklyMealPlan';
 import { useMenu } from '@/composables/useMenu';
@@ -103,7 +126,7 @@ import { formatCurrency } from '@/utils/currency';
 
 const router = useRouter();
 const { t } = useI18n();
-const { days, orderTime, loaded, savePlan } = useWeeklyMealPlan();
+const { days, orderTime, loaded, loading: planLoading, savePlan } = useWeeklyMealPlan();
 const { meals, findMeal } = useMenu();
 
 const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -430,5 +453,21 @@ async function onSave() {
 .save-btn ion-spinner {
   width: 20px;
   height: 20px;
+}
+</style>
+
+<style>
+/* ion-select's popover is created dynamically outside this component, so it
+   can't be reached with scoped styles — cssClass + a global rule is the only
+   way to restyle it. */
+.meal-popover::part(content) {
+  border-radius: 18px;
+  --width: 280px;
+  --max-height: 340px;
+  --box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.35);
+}
+
+.meal-popover ion-radio {
+  --color-checked: #ff6b35;
 }
 </style>

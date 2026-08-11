@@ -152,5 +152,5 @@ export function useCart() {
       if (userData.user) subscribeToCart(userData.user.id);
     });
   }
-  return { lines, addToCart, removeLine, updateQty, clearCart, itemCount, subtotal, fetchCart };
+  return { lines, loaded, addToCart, removeLine, updateQty, clearCart, itemCount, subtotal, fetchCart };
 }

@@ -8,7 +8,21 @@
         <h1>{{ $t('cart.title') }}</h1>
       </div>
 
-      <div class="page-body" v-if="cart.lines.length">
+      <div class="page-body" v-if="!cart.loaded.value">
+        <div class="cart-list">
+          <div class="panel-card cart-line" v-for="i in 2" :key="i">
+            <ion-skeleton-text :animated="true" class="image-skeleton"></ion-skeleton-text>
+            <div class="cart-line-body">
+              <ion-skeleton-text :animated="true" style="width: 70%; height: 14px"></ion-skeleton-text>
+              <div class="cart-line-footer">
+                <ion-skeleton-text :animated="true" style="width: 40%; height: 14px; margin-top: 10px"></ion-skeleton-text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-body" v-else-if="cart.lines.length">
         <div class="cart-list">
           <div class="panel-card cart-line" v-for="line in cart.lines" :key="line.lineId">
             <img :src="line.image" :alt="line.name" class="cart-line-image" />
@@ -59,7 +73,7 @@
         <button class="primary-btn" @click="router.push('/tabs/tab2')">{{ $t('orders.browseMenu') }}</button>
       </div>
 
-      <div class="cart-footer" v-if="cart.lines.length">
+      <div class="cart-footer" slot="fixed" v-if="cart.lines.length">
         <button class="checkout-btn" @click="router.push('/checkout')">
           <span>{{ $t('cart.proceedToCheckout') }}</span>
           <span>{{ formatCurrency(cart.subtotal.value) }}</span>
@@ -81,7 +95,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonToast, IonSkeletonText } from '@ionic/vue';
 import { chevronBackOutline, removeOutline, addOutline, trashOutline, cartOutline } from 'ionicons/icons';
 import { useCart } from '@/composables/useCart';
 import { formatCurrency } from '@/utils/currency';
@@ -183,6 +197,14 @@ async function onRemoveLine(lineId: string) {
   border-radius: 14px;
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.image-skeleton {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .cart-line-body {

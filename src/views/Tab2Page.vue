@@ -33,7 +33,23 @@
         </div>
       </div>
 
-      <div class="menu-grid" v-if="filteredMeals.length">
+      <div class="menu-grid" v-if="loading && meals.length === 0">
+        <div class="menu-card" v-for="i in 6" :key="i">
+          <div class="menu-card-image">
+            <ion-skeleton-text :animated="true" class="image-skeleton"></ion-skeleton-text>
+          </div>
+          <div class="menu-card-body">
+            <ion-skeleton-text :animated="true" style="width: 80%; height: 13px"></ion-skeleton-text>
+            <ion-skeleton-text :animated="true" style="width: 45%; height: 10px; margin-top: 8px"></ion-skeleton-text>
+            <div class="menu-card-footer">
+              <ion-skeleton-text :animated="true" style="width: 30%; height: 12px; margin-top: 10px"></ion-skeleton-text>
+              <ion-skeleton-text :animated="true" style="width: 25%; height: 12px; margin-top: 10px"></ion-skeleton-text>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-grid" v-else-if="filteredMeals.length">
         <button class="menu-card" v-for="meal in filteredMeals" :key="meal.id" @click="goToItem(meal.id)">
           <div class="menu-card-image">
             <img :src="meal.image" :alt="meal.name" loading="lazy" />
@@ -71,7 +87,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonSearchbar } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonSearchbar, IonSkeletonText } from '@ionic/vue';
 import { flameOutline, addCircleOutline, searchOutline } from 'ionicons/icons';
 import { CATEGORY_ALL } from '@/data/menu';
 import { useMenu } from '@/composables/useMenu';
@@ -80,7 +96,7 @@ import CartButton from '@/components/CartButton.vue';
 
 const router = useRouter();
 const { t } = useI18n();
-const { meals, categories } = useMenu();
+const { meals, categories, loading } = useMenu();
 
 const selectedCategory = ref(CATEGORY_ALL);
 const searchQuery = ref('');
@@ -200,6 +216,13 @@ function goToItem(id: number) {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.image-skeleton {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
 }
 
 .low-badge {

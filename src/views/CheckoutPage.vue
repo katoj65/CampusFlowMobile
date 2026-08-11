@@ -86,7 +86,7 @@
         </section>
       </div>
 
-      <div class="checkout-footer">
+      <div class="checkout-footer" slot="fixed">
         <button class="place-order-btn" :disabled="submitting" @click="onPlaceOrder">
           <ion-spinner v-if="submitting" name="crescent" />
           <template v-else>

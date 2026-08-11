@@ -14,7 +14,12 @@
             <ion-icon :icon="walletOutline" />
             <span>{{ $t('wallet.availableBalance') }}</span>
           </div>
-          <p class="wallet-balance">{{ formatCurrency(balance) }}</p>
+          <ion-skeleton-text
+            v-if="walletLoading"
+            :animated="true"
+            style="width: 120px; height: 32px; margin: 10px 0 16px"
+          ></ion-skeleton-text>
+          <p v-else class="wallet-balance">{{ formatCurrency(balance) }}</p>
           <div class="wallet-actions">
             <button class="wallet-action-btn" :class="{ active: mode === 'topup' }" @click="setMode('topup')">
               <ion-icon :icon="addCircleOutline" />
@@ -113,7 +118,17 @@
 
         <section class="detail-section">
           <h2>{{ $t('wallet.history') }}</h2>
-          <div v-if="transactions.length === 0" class="empty-state">
+          <div class="panel-card history-list" v-if="walletLoading">
+            <div class="history-row" v-for="i in 3" :key="i">
+              <ion-skeleton-text :animated="true" style="width: 38px; height: 38px; border-radius: 50%; margin: 0"></ion-skeleton-text>
+              <div class="history-text">
+                <ion-skeleton-text :animated="true" style="width: 90px; height: 12px"></ion-skeleton-text>
+                <ion-skeleton-text :animated="true" style="width: 130px; height: 10px; margin-top: 6px"></ion-skeleton-text>
+              </div>
+              <ion-skeleton-text :animated="true" style="width: 50px; height: 14px; margin: 0"></ion-skeleton-text>
+            </div>
+          </div>
+          <div v-else-if="transactions.length === 0" class="empty-state">
             <ion-icon :icon="receiptOutline" />
             <p>{{ $t('wallet.noTransactions') }}</p>
             <span>{{ $t('wallet.noTransactionsHint') }}</span>
@@ -150,7 +165,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast, IonSpinner } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonToast, IonSpinner, IonSkeletonText } from '@ionic/vue';
 import {
   chevronBackOutline,
   walletOutline,
@@ -172,7 +187,7 @@ import { formatCardNumberInput, formatExpiryInput, isValidCardEntry } from '@/ut
 
 const router = useRouter();
 const { t } = useI18n();
-const { balance, transactions, topUp, withdraw } = useWallet();
+const { balance, transactions, loading: walletLoading, topUp, withdraw } = useWallet();
 const { methods: paymentMethods, addCard } = usePaymentMethods();
 
 const cardMethods = computed(() => paymentMethods.filter((m) => m.type === 'card'));

@@ -8,8 +8,27 @@
         <h1>{{ $t('confirmation.trackOrder') }}</h1>
       </div>
 
-      <div v-if="loading" class="loading-state">
-        <ion-spinner name="crescent" />
+      <div v-if="loading" class="page-body">
+        <div class="panel-card order-status-card">
+          <div class="panel-header">
+            <div>
+              <ion-skeleton-text :animated="true" style="width: 100px; height: 16px"></ion-skeleton-text>
+              <ion-skeleton-text :animated="true" style="width: 80px; height: 11px; margin-top: 6px"></ion-skeleton-text>
+            </div>
+            <ion-skeleton-text :animated="true" style="width: 56px; height: 20px; border-radius: 999px"></ion-skeleton-text>
+          </div>
+          <ion-skeleton-text :animated="true" style="width: 100%; height: 60px; margin-top: 20px"></ion-skeleton-text>
+          <ion-skeleton-text :animated="true" style="width: 70%; height: 14px; margin-top: 18px"></ion-skeleton-text>
+          <ion-skeleton-text :animated="true" style="width: 55%; height: 14px; margin-top: 10px"></ion-skeleton-text>
+        </div>
+        <div class="panel-card code-card">
+          <ion-skeleton-text :animated="true" style="width: 40%; height: 30px; margin: 0 auto"></ion-skeleton-text>
+        </div>
+        <div class="panel-card items-card">
+          <ion-skeleton-text :animated="true" style="width: 50%; height: 14px"></ion-skeleton-text>
+          <ion-skeleton-text :animated="true" style="width: 100%; height: 16px; margin-top: 14px"></ion-skeleton-text>
+          <ion-skeleton-text :animated="true" style="width: 100%; height: 16px; margin-top: 10px"></ion-skeleton-text>
+        </div>
       </div>
 
       <div v-else-if="!order" class="empty-state">
@@ -85,7 +104,11 @@
           <ion-icon :icon="checkmarkCircle" />
           {{ $t('orders.readyBanner') }}
         </div>
-        <button v-else-if="canCancel" class="cancel-btn" @click="showCancelAlert = true">
+        <div v-else-if="!canCancel" class="window-closed-note">
+          <ion-icon :icon="timeOutline" />
+          {{ $t('orders.cancelWindowClosed') }}
+        </div>
+        <button v-else class="cancel-btn" @click="showCancelAlert = true">
           <ion-icon :icon="closeCircleOutline" />
           {{ $t('orders.cancelOrder') }}
         </button>
@@ -118,7 +141,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonSpinner, IonToast } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonSkeletonText, IonToast } from '@ionic/vue';
 import {
   chevronBackOutline,
   timeOutline,
@@ -138,7 +161,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue';
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const { fetchOrderById, cancelOrder } = useOrders();
+const { fetchOrderById, cancelOrder, canCancelOrder } = useOrders();
 
 const orderId = Number(route.params.id);
 const order = ref<ActiveOrder | null>(null);
@@ -150,6 +173,8 @@ async function loadOrder() {
 }
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
+const now = ref(Date.now());
+let cancelWindowTimer: number | undefined;
 onMounted(() => {
   loadOrder();
   channel = supabase
@@ -158,9 +183,13 @@ onMounted(() => {
       loadOrder()
     )
     .subscribe();
+  cancelWindowTimer = window.setInterval(() => {
+    now.value = Date.now();
+  }, 30000);
 });
 onUnmounted(() => {
   if (channel) supabase.removeChannel(channel);
+  if (cancelWindowTimer) window.clearInterval(cancelWindowTimer);
 });
 
 const steps = computed(() => [
@@ -195,7 +224,10 @@ function statusLabel(status: OrderStatus) {
   return labels[status];
 }
 
-const canCancel = computed(() => order.value?.status === 'placed' || order.value?.status === 'preparing');
+const canCancel = computed(() => {
+  void now.value;
+  return order.value ? canCancelOrder(order.value) : false;
+});
 
 const showCancelAlert = ref(false);
 const showToast = ref(false);
@@ -251,18 +283,6 @@ async function onConfirmCancelOrder() {
   font-weight: 700;
 }
 
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-}
-
-.loading-state ion-spinner {
-  width: 32px;
-  height: 32px;
-  color: #ff6b35;
-}
 
 .page-body {
   padding: 4px 16px 32px;
@@ -487,6 +507,26 @@ async function onConfirmCancelOrder() {
 }
 
 .ready-banner ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.window-closed-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--ion-color-step-100, #eee);
+  color: var(--ion-color-medium);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+}
+
+.window-closed-note ion-icon {
   font-size: 18px;
   flex-shrink: 0;
 }

@@ -25,7 +25,25 @@
 
       <div class="segment-body">
         <template v-if="activeSegment === 'active'">
-          <div v-if="activeOrder" class="active-order">
+          <div v-if="!loaded" class="active-order">
+            <div class="panel-card order-status-card">
+              <div class="panel-header">
+                <div>
+                  <ion-skeleton-text :animated="true" style="width: 100px; height: 16px"></ion-skeleton-text>
+                  <ion-skeleton-text :animated="true" style="width: 80px; height: 11px; margin-top: 6px"></ion-skeleton-text>
+                </div>
+                <ion-skeleton-text :animated="true" style="width: 56px; height: 20px; border-radius: 999px"></ion-skeleton-text>
+              </div>
+              <ion-skeleton-text :animated="true" style="width: 100%; height: 60px; margin-top: 20px"></ion-skeleton-text>
+              <ion-skeleton-text :animated="true" style="width: 70%; height: 14px; margin-top: 18px"></ion-skeleton-text>
+              <ion-skeleton-text :animated="true" style="width: 55%; height: 14px; margin-top: 10px"></ion-skeleton-text>
+            </div>
+            <div class="panel-card code-card">
+              <ion-skeleton-text :animated="true" style="width: 40%; height: 30px; margin: 0 auto"></ion-skeleton-text>
+            </div>
+          </div>
+
+          <div v-else-if="activeOrder" class="active-order">
             <div class="panel-card order-status-card">
               <div class="panel-header">
                 <div>
@@ -92,6 +110,10 @@
               <ion-icon :icon="checkmarkCircle" />
               {{ $t('orders.readyBanner') }}
             </div>
+            <div v-else-if="!canCancelActiveOrder" class="window-closed-note">
+              <ion-icon :icon="timeOutline" />
+              {{ $t('orders.cancelWindowClosed') }}
+            </div>
             <button v-else class="cancel-btn" @click="showCancelAlert = true">
               <ion-icon :icon="closeCircleOutline" />
               {{ $t('orders.cancelOrder') }}
@@ -107,7 +129,23 @@
         </template>
 
         <template v-else>
-          <div v-if="orderHistory.length" class="history-list">
+          <div v-if="!loaded" class="history-list">
+            <div class="history-card" v-for="i in 2" :key="i">
+              <div class="history-card-body">
+                <div class="history-top">
+                  <ion-skeleton-text :animated="true" style="width: 38px; height: 38px; border-radius: 12px; margin: 0"></ion-skeleton-text>
+                  <div class="history-heading">
+                    <ion-skeleton-text :animated="true" style="width: 90px; height: 14px"></ion-skeleton-text>
+                    <ion-skeleton-text :animated="true" style="width: 70px; height: 10px; margin-top: 6px"></ion-skeleton-text>
+                  </div>
+                  <ion-skeleton-text :animated="true" style="width: 56px; height: 20px; border-radius: 999px; margin: 0"></ion-skeleton-text>
+                </div>
+                <ion-skeleton-text :animated="true" style="width: 100%; height: 40px; margin-top: 12px"></ion-skeleton-text>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="orderHistory.length" class="history-list">
             <section class="history-group" v-for="group in groupedHistory" :key="group.label">
               <p class="group-label">{{ group.label }}</p>
               <div class="history-card" v-for="order in group.items" :key="order.id">
@@ -183,7 +221,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -196,6 +234,7 @@ import {
   IonToast,
   IonRefresher,
   IonRefresherContent,
+  IonSkeletonText,
 } from '@ionic/vue';
 import {
   timeOutline,
@@ -218,11 +257,27 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue';
 
 const router = useRouter();
 const { t } = useI18n();
-const { activeOrder, orderHistory, cancelActiveOrder, fetchOrders } = useOrders();
+const { activeOrder, orderHistory, loaded, canCancelOrder, cancelActiveOrder, fetchOrders } = useOrders();
 const cart = useCart();
 const { meals: menuItems } = useMenu();
 
 const activeSegment = ref<'active' | 'history'>('active');
+
+const now = ref(Date.now());
+let cancelWindowTimer: number | undefined;
+onMounted(() => {
+  cancelWindowTimer = window.setInterval(() => {
+    now.value = Date.now();
+  }, 30000);
+});
+onUnmounted(() => {
+  if (cancelWindowTimer) window.clearInterval(cancelWindowTimer);
+});
+
+const canCancelActiveOrder = computed(() => {
+  void now.value;
+  return activeOrder.value ? canCancelOrder(activeOrder.value) : false;
+});
 
 const activeLabel = computed(() => (activeOrder.value ? t('orders.activeWithCount') : t('orders.active')));
 const historyLabel = computed(() =>
@@ -671,6 +726,26 @@ async function onConfirmCancelOrder() {
 }
 
 .ready-banner ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.window-closed-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--ion-color-step-100, #eee);
+  color: var(--ion-color-medium);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+}
+
+.window-closed-note ion-icon {
   font-size: 18px;
   flex-shrink: 0;
 }

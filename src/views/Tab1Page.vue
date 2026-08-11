@@ -58,6 +58,9 @@
             </div>
           </div>
         </button>
+        <div class="special-card special-skeleton" v-else-if="menuLoading">
+          <ion-skeleton-text :animated="true" class="image-skeleton"></ion-skeleton-text>
+        </div>
       </section>
 
       <div class="dashboard-body">
@@ -101,7 +104,19 @@
               {{ $t('dashboard.seeAll') }} <ion-icon :icon="chevronForwardOutline" />
             </button>
           </div>
-          <div class="scroll-row">
+          <div class="scroll-row" v-if="menuLoading && recommendations.length === 0">
+            <div class="meal-card" v-for="i in 3" :key="i">
+              <div class="meal-image-wrap">
+                <ion-skeleton-text :animated="true" class="image-skeleton"></ion-skeleton-text>
+              </div>
+              <div class="meal-info">
+                <ion-skeleton-text :animated="true" style="width: 85%; height: 12px"></ion-skeleton-text>
+                <ion-skeleton-text :animated="true" style="width: 50%; height: 10px; margin-top: 8px"></ion-skeleton-text>
+                <ion-skeleton-text :animated="true" style="width: 40%; height: 12px; margin-top: 8px"></ion-skeleton-text>
+              </div>
+            </div>
+          </div>
+          <div class="scroll-row" v-else>
             <button class="meal-card" v-for="meal in recommendations" :key="meal.id" @click="goToItem(meal.id)">
               <div class="meal-image-wrap">
                 <img :src="meal.image" :alt="meal.name" loading="lazy" />
@@ -120,7 +135,19 @@
           </div>
         </section>
 
-        <div class="stat-row">
+        <div class="stat-row" v-if="menuLoading && menuItems.length === 0">
+          <ion-card class="panel-card stat-card">
+            <ion-skeleton-text :animated="true" style="width: 22px; height: 22px; border-radius: 6px"></ion-skeleton-text>
+            <ion-skeleton-text :animated="true" style="width: 36px; height: 20px; margin-top: 6px"></ion-skeleton-text>
+            <ion-skeleton-text :animated="true" style="width: 70%; height: 10px; margin-top: 4px"></ion-skeleton-text>
+          </ion-card>
+          <ion-card class="panel-card stat-card">
+            <ion-skeleton-text :animated="true" style="width: 22px; height: 22px; border-radius: 6px"></ion-skeleton-text>
+            <ion-skeleton-text :animated="true" style="width: 36px; height: 20px; margin-top: 6px"></ion-skeleton-text>
+            <ion-skeleton-text :animated="true" style="width: 70%; height: 10px; margin-top: 4px"></ion-skeleton-text>
+          </ion-card>
+        </div>
+        <div class="stat-row" v-else>
           <ion-card class="panel-card stat-card">
             <ion-icon :icon="fastFoodOutline" class="stat-icon" />
             <strong class="stat-value">{{ meals.available }}</strong>
@@ -188,7 +215,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonCard, IonIcon, IonAvatar } from '@ionic/vue';
+import { IonPage, IonContent, IonCard, IonIcon, IonAvatar, IonSkeletonText } from '@ionic/vue';
 import { useLanguage } from '@/composables/useLanguage';
 import {
   timeOutline,
@@ -357,7 +384,7 @@ const queueMeterWidth = computed(() => `${(queue.value.levelIndex / 3) * 100}%`)
 const { orderHistory } = useOrders();
 const latestOrder = computed(() => orderHistory[0] ?? null);
 
-const { meals: menuItems, findMeal } = useMenu();
+const { meals: menuItems, findMeal, loading: menuLoading } = useMenu();
 const special = computed(() => findMeal(3));
 
 const recommendations = computed(() => {
@@ -572,6 +599,13 @@ function goToItem(id: number) {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.image-skeleton {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
 }
 
 .special-scrim {

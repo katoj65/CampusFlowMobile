@@ -91,7 +91,7 @@
         </section>
       </div>
 
-      <div class="save-footer">
+      <div class="save-footer" slot="fixed">
         <button class="save-btn" :disabled="!isDirty || !canSave" @click="onSave">
           {{ isDirty ? $t('account.details.saveChanges') : $t('account.details.saved') }}
         </button>

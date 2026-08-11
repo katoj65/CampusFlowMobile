@@ -14,7 +14,12 @@
             <ion-icon :icon="walletOutline" />
             <span>{{ $t('payment.campusWallet') }}</span>
           </div>
-          <p class="wallet-balance">{{ formatCurrency(balance) }}</p>
+          <ion-skeleton-text
+            v-if="walletLoading"
+            :animated="true"
+            style="width: 100px; height: 28px; margin: 10px 0 16px"
+          ></ion-skeleton-text>
+          <p v-else class="wallet-balance">{{ formatCurrency(balance) }}</p>
           <button class="topup-btn" @click="router.push('/wallet')">
             <ion-icon :icon="walletOutline" />
             {{ $t('payment.manageWallet') }}
@@ -23,7 +28,16 @@
 
         <section class="detail-section">
           <h2>{{ $t('payment.savedMethods') }}</h2>
-          <div class="method-list">
+          <div class="method-list" v-if="!methodsLoaded">
+            <div class="method-row" v-for="i in 2" :key="i">
+              <ion-skeleton-text :animated="true" style="width: 38px; height: 38px; border-radius: 50%; margin: 0"></ion-skeleton-text>
+              <div class="method-text">
+                <ion-skeleton-text :animated="true" style="width: 80px; height: 13px"></ion-skeleton-text>
+                <ion-skeleton-text :animated="true" style="width: 110px; height: 11px; margin-top: 6px"></ion-skeleton-text>
+              </div>
+            </div>
+          </div>
+          <div class="method-list" v-else>
             <div
               class="method-row"
               v-for="method in methods"
@@ -96,7 +110,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonToast, IonSkeletonText } from '@ionic/vue';
 import {
   chevronBackOutline,
   walletOutline,
@@ -111,8 +125,8 @@ import { formatCardNumberInput, formatExpiryInput, isValidCardEntry } from '@/ut
 
 const router = useRouter();
 const { t } = useI18n();
-const { methods, setDefault, removeMethod, addCard } = usePaymentMethods();
-const { balance } = useWallet();
+const { methods, loaded: methodsLoaded, setDefault, removeMethod, addCard } = usePaymentMethods();
+const { balance, loading: walletLoading } = useWallet();
 
 const showToast = ref(false);
 const toastMessage = ref('');
