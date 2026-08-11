@@ -32,7 +32,7 @@
         <div class="panel-card items-card">
           <div class="item-row" v-for="item in order.items" :key="item.name">
             <span>{{ item.qty }}× {{ item.name }}</span>
-            <span>{{ formatCurrency(item.price * item.qty) }}</span>
+            <span>{{ formatCurrency(item.unitPrice * item.qty + item.extrasTotal) }}</span>
           </div>
           <div class="item-row total-row">
             <span>{{ $t('orders.total') }}</span>

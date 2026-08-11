@@ -30,7 +30,7 @@
               <h4>{{ line.name }}</h4>
               <p v-if="line.summary" class="cart-line-summary">{{ line.summary }}</p>
               <div class="cart-line-footer">
-                <span class="cart-line-price">{{ formatCurrency((line.unitPrice + line.extrasTotal) * line.qty) }}</span>
+                <span class="cart-line-price">{{ formatCurrency(line.unitPrice * line.qty + line.extrasTotal) }}</span>
                 <div class="cart-line-actions">
                   <div class="mini-stepper">
                     <button @click="onUpdateQty(line.lineId, line.qty - 1)" :disabled="line.qty <= 1">

@@ -149,7 +149,7 @@ async function clearCart() {
 }
 
 const itemCount = computed(() => lines.reduce((sum, line) => sum + line.qty, 0));
-const subtotal = computed(() => lines.reduce((sum, line) => sum + (line.unitPrice + line.extrasTotal) * line.qty, 0));
+const subtotal = computed(() => lines.reduce((sum, line) => sum + line.unitPrice * line.qty + line.extrasTotal, 0));
 
 export function useCart() {
   if (!loaded.value) {

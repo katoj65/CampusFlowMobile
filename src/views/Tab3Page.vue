@@ -98,7 +98,7 @@
               <h2>{{ $t('orders.orderSummary') }}</h2>
               <div class="item-row" v-for="item in activeOrder.items" :key="item.name">
                 <span>{{ item.qty }}× {{ item.name }}</span>
-                <span>{{ formatCurrency(item.price * item.qty) }}</span>
+                <span>{{ formatCurrency(item.unitPrice * item.qty + item.extrasTotal) }}</span>
               </div>
               <div class="item-row total-row">
                 <span>{{ $t('orders.total') }}</span>
@@ -167,7 +167,7 @@
                     <div class="history-item-row" v-for="item in order.items" :key="item.name">
                       <span class="history-item-qty">{{ item.qty }}×</span>
                       <span class="history-item-name">{{ item.name }}</span>
-                      <span class="history-item-price">{{ formatCurrency(item.price * item.qty) }}</span>
+                      <span class="history-item-price">{{ formatCurrency(item.unitPrice * item.qty + item.extrasTotal) }}</span>
                     </div>
                   </div>
 
@@ -364,11 +364,11 @@ async function onReorder(order: PastOrder) {
           mealId: meal.id,
           name: item.name,
           image: meal.image,
-          unitPrice: item.price,
+          unitPrice: item.unitPrice,
           qty: item.qty,
           summary: '',
           extras: [],
-          extrasTotal: 0,
+          extrasTotal: item.extrasTotal,
         })
       )
     );

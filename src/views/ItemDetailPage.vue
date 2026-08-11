@@ -214,7 +214,7 @@ const selectedExtraOptions = computed(() =>
 );
 const extrasTotal = computed(() => selectedExtraOptions.value.reduce((sum, e) => sum + e.priceDelta, 0));
 
-const totalPrice = computed(() => (unitPrice.value + extrasTotal.value) * qty.value);
+const totalPrice = computed(() => unitPrice.value * qty.value + extrasTotal.value);
 
 const customizationSummary = computed(() => {
   if (!meal.value || !meal.value.customizable) return '';
