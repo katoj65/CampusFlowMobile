@@ -1,37 +1,39 @@
 import { ref } from 'vue';
 
 export interface PickupLocation {
-  id: string;
+  id: number;
   name: string;
   building: string;
   walkTime: string;
   hours: string;
 }
 
+/** Mirrors supabase/migrations/0019_pickup_locations_numeric_id.sql — ids
+ * are system-generated identity values, in the same order as that seed. */
 export const pickupLocations: PickupLocation[] = [
   {
-    id: 'mensa-c2',
+    id: 1,
     name: 'Mensa Ground Floor, Counter 2',
     building: 'Main Mensa',
     walkTime: '2 min',
     hours: '11:00 – 20:00',
   },
   {
-    id: 'mensa-c1',
+    id: 2,
     name: 'Mensa Ground Floor, Counter 1',
     building: 'Main Mensa',
     walkTime: '2 min',
     hours: '11:00 – 20:00',
   },
   {
-    id: 'library-cafe',
+    id: 3,
     name: 'Library Café',
     building: 'Central Library',
     walkTime: '6 min',
     hours: '08:00 – 18:00',
   },
   {
-    id: 'engineering-kiosk',
+    id: 4,
     name: 'Engineering Building Kiosk',
     building: 'Building C',
     walkTime: '9 min',
@@ -39,9 +41,9 @@ export const pickupLocations: PickupLocation[] = [
   },
 ];
 
-const selectedLocationId = ref('mensa-c2');
+const selectedLocationId = ref(1);
 
-function setPickupLocation(id: string) {
+function setPickupLocation(id: number) {
   selectedLocationId.value = id;
 }
 

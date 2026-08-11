@@ -34,6 +34,13 @@
               @blur="touched = true"
             />
           </label>
+          <label class="field select-field" :class="{ invalid: touched && !isUniversityValid }">
+            <ion-icon :icon="schoolOutline" />
+            <select v-model="universityId" @blur="touched = true">
+              <option value="" disabled>{{ $t('auth.register.universityPlaceholder') }}</option>
+              <option v-for="uni in universities" :key="uni.id" :value="String(uni.id)">{{ uni.name }}</option>
+            </select>
+          </label>
           <label class="field" :class="{ invalid: touched && !isPasswordValid }">
             <ion-icon :icon="lockClosedOutline" />
             <input
@@ -105,6 +112,7 @@ import {
   chevronBackOutline,
   personOutline,
   mailOutline,
+  schoolOutline,
   lockClosedOutline,
   eyeOutline,
   eyeOffOutline,
@@ -112,6 +120,7 @@ import {
   squareOutline,
 } from 'ionicons/icons';
 import { useAuth, AuthError } from '@/composables/useAuth';
+import { universities } from '@/data/universities';
 
 const router = useRouter();
 const auth = useAuth();
@@ -120,6 +129,7 @@ const { t } = useI18n();
 const firstName = ref('');
 const lastName = ref('');
 const email = ref('');
+const universityId = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const showPassword = ref(false);
@@ -130,6 +140,7 @@ const loading = ref(false);
 const isFirstNameValid = computed(() => firstName.value.trim().length > 1);
 const isLastNameValid = computed(() => lastName.value.trim().length > 1);
 const isEmailValid = computed(() => /^\S+@\S+\.\S+$/.test(email.value.trim()));
+const isUniversityValid = computed(() => universityId.value.length > 0);
 const isPasswordValid = computed(() => password.value.length >= 8);
 const isConfirmValid = computed(() => confirmPassword.value.length > 0 && confirmPassword.value === password.value);
 
@@ -147,6 +158,7 @@ const canSubmit = computed(
     isFirstNameValid.value &&
     isLastNameValid.value &&
     isEmailValid.value &&
+    isUniversityValid.value &&
     isPasswordValid.value &&
     isConfirmValid.value &&
     acceptedTerms.value &&
@@ -163,7 +175,15 @@ function notify(message: string) {
 
 async function onRegister() {
   touched.value = true;
-  if (!isFirstNameValid.value || !isLastNameValid.value || !isEmailValid.value || !isPasswordValid.value || !isConfirmValid.value) return;
+  if (
+    !isFirstNameValid.value ||
+    !isLastNameValid.value ||
+    !isEmailValid.value ||
+    !isUniversityValid.value ||
+    !isPasswordValid.value ||
+    !isConfirmValid.value
+  )
+    return;
   if (!acceptedTerms.value) {
     notify(t('auth.register.mustAcceptTerms'));
     return;
@@ -174,6 +194,7 @@ async function onRegister() {
       firstName: firstName.value.trim(),
       lastName: lastName.value.trim(),
       email: email.value.trim(),
+      universityId: Number(universityId.value),
       password: password.value,
       passwordConfirmation: confirmPassword.value,
     });
@@ -302,6 +323,20 @@ async function onRegister() {
 }
 
 .field input:focus {
+  outline: none;
+}
+
+.select-field select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--ion-text-color);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.select-field select:focus {
   outline: none;
 }
 

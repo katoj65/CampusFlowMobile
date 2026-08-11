@@ -23,6 +23,10 @@
             <ion-icon :icon="locationOutline" />
             <span>{{ order.location }}</span>
           </div>
+          <div class="info-row">
+            <ion-icon :icon="cardOutline" />
+            <span>{{ order.paymentMethod }}</span>
+          </div>
         </div>
 
         <div class="panel-card items-card">
@@ -65,6 +69,7 @@ import {
   qrCodeOutline,
   timeOutline,
   locationOutline,
+  cardOutline,
   receiptOutline,
   fastFoodOutline,
 } from 'ionicons/icons';

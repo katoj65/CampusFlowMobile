@@ -21,7 +21,7 @@
               v-for="diet in dietOptions"
               :key="diet"
               :class="{ active: primaryDiet === diet }"
-              @click="setPrimaryDiet(diet)"
+              @click="onSelectDiet(diet)"
             >
               <div class="option-icon" :style="{ background: dietMeta(diet).color + '1f', color: dietMeta(diet).color }">
                 <ion-icon :icon="dietMeta(diet).icon" />
@@ -41,7 +41,7 @@
               v-for="allergy in allergyOptions"
               :key="allergy"
               :class="{ active: allergies.includes(allergy) }"
-              @click="toggleAllergy(allergy)"
+              @click="onToggleAllergy(allergy)"
             >
               <div class="option-icon warn-icon">
                 <ion-icon :icon="alertCircleOutline" />
@@ -57,13 +57,23 @@
           {{ $t('diet.crossContaminationDisclaimer') }}
         </p>
       </div>
+
+      <ion-toast
+        :is-open="showToast"
+        :message="toastMessage"
+        :duration="1800"
+        position="top"
+        @didDismiss="showToast = false"
+      ></ion-toast>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent, IonIcon } from '@ionic/vue';
+import { useI18n } from 'vue-i18n';
+import { IonPage, IonContent, IonIcon, IonToast } from '@ionic/vue';
 import {
   chevronBackOutline,
   checkmarkCircle,
@@ -78,7 +88,32 @@ import {
 import { useProfile, dietOptions, allergyOptions } from '@/composables/useProfile';
 
 const router = useRouter();
+const { t } = useI18n();
 const { primaryDiet, allergies, setPrimaryDiet, toggleAllergy } = useProfile();
+
+const showToast = ref(false);
+const toastMessage = ref('');
+function notify(message: string) {
+  toastMessage.value = message;
+  showToast.value = true;
+}
+
+async function onSelectDiet(diet: string) {
+  if (primaryDiet.value === diet) return;
+  try {
+    await setPrimaryDiet(diet);
+  } catch {
+    notify(t('diet.updateFailed'));
+  }
+}
+
+async function onToggleAllergy(allergy: string) {
+  try {
+    await toggleAllergy(allergy);
+  } catch {
+    notify(t('diet.updateFailed'));
+  }
+}
 
 const dietIconMeta: Record<string, { icon: string; color: string }> = {
   'No Preference': { icon: fastFoodOutline, color: '#94A3B8' },

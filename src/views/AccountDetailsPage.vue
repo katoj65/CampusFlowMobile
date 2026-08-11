@@ -40,16 +40,21 @@
         <section class="detail-section">
           <h2>{{ $t('account.details.studentInfo') }}</h2>
           <div class="form-card">
-            <div class="readonly-row">
-              <div class="readonly-icon">
-                <ion-icon :icon="idCardOutline" />
-              </div>
-              <div class="readonly-text">
-                <strong>{{ $t('account.details.studentId') }}</strong>
-                <span>{{ account.studentId }}</span>
-              </div>
-              <ion-icon :icon="lockClosedOutline" class="lock" />
-            </div>
+            <label class="field">
+              <span>{{ $t('account.details.studentId') }}</span>
+              <input
+                v-model="form.studentId"
+                class="field-input"
+                :placeholder="$t('account.details.studentIdPlaceholder')"
+              />
+            </label>
+            <label class="field">
+              <span>{{ $t('account.details.university') }}</span>
+              <select v-model="form.universityId" class="field-input">
+                <option value="">{{ $t('account.details.universityPlaceholder') }}</option>
+                <option v-for="uni in universities" :key="uni.id" :value="String(uni.id)">{{ uni.name }}</option>
+              </select>
+            </label>
             <div class="readonly-row">
               <div class="readonly-icon">
                 <ion-icon :icon="calendarOutline" />
@@ -111,13 +116,13 @@ import { IonPage, IonContent, IonIcon, IonAvatar, IonToast } from '@ionic/vue';
 import {
   chevronBackOutline,
   cameraOutline,
-  idCardOutline,
   calendarOutline,
   lockClosedOutline,
   informationCircleOutline,
 } from 'ionicons/icons';
 import { useAccount } from '@/composables/useAccount';
 import { useLanguage } from '@/composables/useLanguage';
+import { universities } from '@/data/universities';
 
 const router = useRouter();
 const { account, updateAccount } = useAccount();
@@ -128,19 +133,28 @@ const form = reactive({
   name: account.name,
   email: account.email,
   phone: account.phone,
+  studentId: account.studentId,
+  universityId: account.universityId !== null ? String(account.universityId) : '',
 });
 
 watch(
-  () => [account.name, account.email, account.phone],
-  ([name, email, phone]) => {
+  () => [account.name, account.email, account.phone, account.studentId, account.universityId] as const,
+  ([name, email, phone, studentId, universityId]) => {
     form.name = name;
     form.email = email;
     form.phone = phone;
+    form.studentId = studentId;
+    form.universityId = universityId !== null ? String(universityId) : '';
   }
 );
 
 const isDirty = computed(
-  () => form.name !== account.name || form.email !== account.email || form.phone !== account.phone
+  () =>
+    form.name !== account.name ||
+    form.email !== account.email ||
+    form.phone !== account.phone ||
+    form.studentId !== account.studentId ||
+    form.universityId !== (account.universityId !== null ? String(account.universityId) : '')
 );
 
 const canSave = computed(() => form.name.trim().length > 0 && /^\S+@\S+\.\S+$/.test(form.email.trim()));
@@ -160,7 +174,13 @@ function notify(message: string) {
 async function onSave() {
   if (!canSave.value) return;
   try {
-    await updateAccount({ name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() });
+    await updateAccount({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      studentId: form.studentId.trim(),
+      universityId: form.universityId ? Number(form.universityId) : null,
+    });
     notify(t('account.details.updated'));
   } catch {
     notify(t('account.details.updateFailed'));

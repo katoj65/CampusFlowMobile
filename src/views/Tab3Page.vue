@@ -1,20 +1,22 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="orders-content">
-      <div class="page-header">
-        <h1>{{ $t('nav.orders') }}</h1>
-        <p class="page-sub">{{ $t('orders.pageSub') }}</p>
-      </div>
+      <div class="sticky-header">
+        <div class="page-header">
+          <h1>{{ $t('nav.orders') }}</h1>
+          <p class="page-sub">{{ $t('orders.pageSub') }}</p>
+        </div>
 
-      <div class="segment-sticky">
-        <ion-segment v-model="activeSegment" class="orders-segment" mode="ios">
-          <ion-segment-button value="active">
-            <ion-label>{{ activeLabel }}</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="history">
-            <ion-label>{{ historyLabel }}</ion-label>
-          </ion-segment-button>
-        </ion-segment>
+        <div class="segment-wrap">
+          <ion-segment v-model="activeSegment" class="orders-segment" mode="ios">
+            <ion-segment-button value="active">
+              <ion-label>{{ activeLabel }}</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="history">
+              <ion-label>{{ historyLabel }}</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+        </div>
       </div>
 
       <div class="segment-body">
@@ -51,6 +53,10 @@
                 <div class="pickup-location">
                   <ion-icon :icon="locationOutline" />
                   <span>{{ activeOrder.location }}</span>
+                </div>
+                <div class="pickup-location">
+                  <ion-icon :icon="cardOutline" />
+                  <span>{{ activeOrder.paymentMethod }}</span>
                 </div>
               </div>
             </div>
@@ -89,21 +95,37 @@
 
         <template v-else>
           <div v-if="orderHistory.length" class="history-list">
-            <div class="panel-card history-card" v-for="order in orderHistory" :key="order.id">
-              <div class="panel-header">
-                <div>
-                  <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
-                  <p class="panel-sub">{{ order.date }}</p>
+            <div class="history-card" v-for="order in orderHistory" :key="order.id">
+              <div class="history-card-body">
+                <div class="history-top">
+                  <div class="history-id-badge">
+                    <ion-icon :icon="bagHandleOutline" />
+                  </div>
+                  <div class="history-heading">
+                    <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
+                    <p class="panel-sub">{{ order.date }}</p>
+                  </div>
+                  <span class="status-badge" :class="`status-${order.status}`">
+                    {{ statusLabel(order.status) }}
+                  </span>
                 </div>
-                <span class="status-badge" :class="`status-${order.status}`">
-                  {{ statusLabel(order.status) }}
-                </span>
-              </div>
-              <p class="history-items">
-                {{ order.items.map((i) => `${i.qty}× ${i.name}`).join(', ') }}
-              </p>
-              <div class="history-footer">
-                <span class="history-total">{{ formatCurrency(order.total) }}</span>
+
+                <div class="history-items-list">
+                  <div class="history-item-row" v-for="item in order.items" :key="item.name">
+                    <span class="history-item-qty">{{ item.qty }}×</span>
+                    <span class="history-item-name">{{ item.name }}</span>
+                    <span class="history-item-price">{{ formatCurrency(item.price * item.qty) }}</span>
+                  </div>
+                </div>
+
+                <div class="history-footer">
+                  <div class="history-payment">
+                    <ion-icon :icon="cardOutline" />
+                    <span>{{ order.paymentMethod }}</span>
+                  </div>
+                  <span class="history-total">{{ formatCurrency(order.total) }}</span>
+                </div>
+
                 <button class="reorder-btn" @click="onReorder(order)">
                   <ion-icon :icon="refreshOutline" />
                   {{ $t('orders.reorder') }}
@@ -147,22 +169,25 @@ import { IonPage, IonContent, IonIcon, IonSegment, IonSegmentButton, IonLabel, I
 import {
   timeOutline,
   locationOutline,
+  cardOutline,
   qrCodeOutline,
   checkmarkCircle,
   ellipseOutline,
   closeCircleOutline,
   receiptOutline,
   refreshOutline,
+  bagHandleOutline,
 } from 'ionicons/icons';
 import { useOrders, type OrderStatus, type PastOrder } from '@/composables/useOrders';
 import { useCart } from '@/composables/useCart';
-import { meals as menuItems } from '@/data/menu';
+import { useMenu } from '@/composables/useMenu';
 import { formatCurrency } from '@/utils/currency';
 
 const router = useRouter();
 const { t } = useI18n();
 const { activeOrder, orderHistory, cancelActiveOrder } = useOrders();
 const cart = useCart();
+const { meals: menuItems } = useMenu();
 
 const activeSegment = ref<'active' | 'history'>('active');
 
@@ -175,10 +200,10 @@ const steps = computed(() => [
   { key: 'placed', label: t('orders.stepPlaced') },
   { key: 'preparing', label: t('orders.stepPreparing') },
   { key: 'ready', label: t('orders.stepReady') },
-  { key: 'completed', label: t('orders.stepPickedUp') },
+  { key: 'picked_up', label: t('orders.stepPickedUp') },
 ]);
 
-const statusOrder: OrderStatus[] = ['placed', 'preparing', 'ready', 'completed'];
+const statusOrder: OrderStatus[] = ['placed', 'preparing', 'ready', 'picked_up'];
 
 const currentStepIndex = computed(() => {
   if (!activeOrder.value) return 0;
@@ -197,7 +222,7 @@ function statusLabel(status: OrderStatus) {
     placed: t('orders.statusPlaced'),
     preparing: t('orders.statusPreparing'),
     ready: t('orders.statusReady'),
-    completed: t('orders.statusCompleted'),
+    picked_up: t('orders.statusPickedUp'),
     cancelled: t('orders.statusCancelled'),
   };
   return labels[status];
@@ -210,21 +235,39 @@ function goToMenu() {
 const showToast = ref(false);
 const toastMessage = ref('');
 
-function onReorder(order: PastOrder) {
-  for (const item of order.items) {
-    const meal = menuItems.find((m) => item.name.startsWith(m.name));
-    cart.addToCart({
-      mealId: meal?.id ?? 0,
-      name: item.name,
-      image: meal?.image ?? menuItems[0].image,
-      unitPrice: item.price,
-      qty: item.qty,
-      summary: '',
-    });
+async function onReorder(order: PastOrder) {
+  // meal_id is a real foreign key now, so only items we can still match
+  // against the current catalog can be re-added.
+  const matched = order.items
+    .map((item) => ({ item, meal: menuItems.find((m) => item.name.startsWith(m.name)) }))
+    .filter((entry): entry is { item: (typeof order.items)[number]; meal: (typeof menuItems)[number] } => !!entry.meal);
+
+  if (matched.length === 0) {
+    toastMessage.value = t('orders.reorderFailed');
+    showToast.value = true;
+    return;
   }
-  toastMessage.value = t('orders.itemsAddedToCart', { count: order.items.length }, order.items.length);
-  showToast.value = true;
-  setTimeout(() => router.push('/cart'), 500);
+
+  try {
+    await Promise.all(
+      matched.map(({ item, meal }) =>
+        cart.addToCart({
+          mealId: meal.id,
+          name: item.name,
+          image: meal.image,
+          unitPrice: item.price,
+          qty: item.qty,
+          summary: '',
+        })
+      )
+    );
+    toastMessage.value = t('orders.itemsAddedToCart', { count: matched.length }, matched.length);
+    showToast.value = true;
+    setTimeout(() => router.push('/cart'), 500);
+  } catch {
+    toastMessage.value = t('orders.reorderFailed');
+    showToast.value = true;
+  }
 }
 
 const showCancelAlert = ref(false);
@@ -234,9 +277,13 @@ const cancelAlertButtons = computed(() => [
   {
     text: t('orders.cancelOrder'),
     role: 'destructive',
-    handler: () => {
-      cancelActiveOrder();
-      toastMessage.value = t('orders.orderCancelled');
+    handler: async () => {
+      try {
+        await cancelActiveOrder();
+        toastMessage.value = t('orders.orderCancelled');
+      } catch {
+        toastMessage.value = t('orders.cancelFailed');
+      }
       showToast.value = true;
     },
   },
@@ -246,6 +293,13 @@ const cancelAlertButtons = computed(() => [
 <style scoped>
 .orders-content {
   --background: var(--ion-color-step-50, #f4f5f8);
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ion-color-step-50, #f4f5f8);
 }
 
 .page-header {
@@ -264,11 +318,7 @@ const cancelAlertButtons = computed(() => [
   color: var(--ion-color-medium);
 }
 
-.segment-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--ion-color-step-50, #f4f5f8);
+.segment-wrap {
   padding: 12px 16px;
 }
 
@@ -355,7 +405,7 @@ const cancelAlertButtons = computed(() => [
   color: #2ec4b6;
 }
 
-.status-completed {
+.status-picked_up {
   background: rgba(46, 196, 182, 0.16);
   color: #2ec4b6;
 }
@@ -512,10 +562,89 @@ const cancelAlertButtons = computed(() => [
   font-size: 14px;
 }
 
-.history-items {
-  margin: 10px 0 12px;
+.history-card {
+  display: flex;
+  background: var(--ion-card-background, #fff);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--ion-color-step-100, rgba(0, 0, 0, 0.04));
+}
+
+.history-card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.history-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.history-id-badge {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 107, 53, 0.1);
+  color: #ff6b35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.history-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.history-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ion-color-step-100, #f0f0f0);
+  border-bottom: 1px solid var(--ion-color-step-100, #f0f0f0);
+}
+
+.history-item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 13px;
+}
+
+.history-item-qty {
+  flex-shrink: 0;
   color: var(--ion-color-medium);
+  font-weight: 600;
+}
+
+.history-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item-price {
+  flex-shrink: 0;
+  color: var(--ion-color-medium);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-footer {
@@ -524,22 +653,42 @@ const cancelAlertButtons = computed(() => [
   justify-content: space-between;
 }
 
+.history-payment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.history-payment ion-icon {
+  font-size: 14px;
+}
+
 .history-total {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
 }
 
 .reorder-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  border: none;
-  background: rgba(255, 107, 53, 0.12);
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  border: 1.5px solid rgba(255, 107, 53, 0.3);
+  background: rgba(255, 107, 53, 0.08);
   color: #ff6b35;
   font-weight: 700;
-  font-size: 12px;
-  padding: 7px 12px;
-  border-radius: 999px;
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 12px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.reorder-btn:active {
+  transform: scale(0.97);
+  background: rgba(255, 107, 53, 0.16);
 }
 
 .primary-btn {

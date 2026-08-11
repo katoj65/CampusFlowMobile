@@ -145,7 +145,8 @@ import {
   addOutline,
   fastFoodOutline,
 } from 'ionicons/icons';
-import { findMeal, sizeOptions, spiceLevels, commonExtras } from '@/data/menu';
+import { sizeOptions, spiceLevels, commonExtras, CATEGORY_MAINS, CATEGORY_GRILL } from '@/data/menu';
+import { useMenu } from '@/composables/useMenu';
 import { useCart } from '@/composables/useCart';
 import { formatCurrency } from '@/utils/currency';
 import CartButton from '@/components/CartButton.vue';
@@ -154,6 +155,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const cart = useCart();
+const { findMeal } = useMenu();
 
 const meal = computed(() => findMeal(Number(route.params.id)));
 
@@ -163,7 +165,7 @@ const selectedSpice = ref(spiceLevels[1]);
 const selectedExtras = ref(new Set<string>());
 const includedIngredients = ref(new Set<string>(meal.value?.ingredients ?? []));
 
-const showSpiceLevel = computed(() => meal.value?.category === 'mains' || meal.value?.category === 'grill');
+const showSpiceLevel = computed(() => meal.value?.category === CATEGORY_MAINS || meal.value?.category === CATEGORY_GRILL);
 
 function toggleExtra(id: string) {
   if (selectedExtras.value.has(id)) {
@@ -222,14 +224,18 @@ const toastMessage = ref('');
 
 function onAddToCart() {
   if (!meal.value) return;
-  cart.addToCart({
-    mealId: meal.value.id,
-    name: meal.value.name,
-    image: meal.value.image,
-    unitPrice: unitPrice.value,
-    qty: qty.value,
-    summary: customizationSummary.value,
-  });
+  // Optimistic — addToCart pushes the local line synchronously and only
+  // rolls back in the rare case the background save fails.
+  cart
+    .addToCart({
+      mealId: meal.value.id,
+      name: meal.value.name,
+      image: meal.value.image,
+      unitPrice: unitPrice.value,
+      qty: qty.value,
+      summary: customizationSummary.value,
+    })
+    .catch(() => {});
   toastMessage.value = t('item.addedToCart', { name: meal.value.name });
   showToast.value = true;
   setTimeout(() => router.back(), 500);

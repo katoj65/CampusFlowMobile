@@ -113,6 +113,7 @@ import {
   leafOutline,
   chevronForwardOutline,
   personCircleOutline,
+  walletOutline,
   cardOutline,
   notificationsOutline,
   locationOutline,
@@ -120,6 +121,7 @@ import {
   helpCircleOutline,
   documentTextOutline,
   logOutOutline,
+  calendarOutline,
 } from 'ionicons/icons';
 import { useProfile } from '@/composables/useProfile';
 import { useAccount } from '@/composables/useAccount';
@@ -155,6 +157,8 @@ const avatarUrl = computed(
 
 const accountItems = computed<SettingsItem[]>(() => [
   { key: 'accountDetails', label: t('profile.accountDetails'), icon: personCircleOutline, route: '/account-details' },
+  { key: 'weeklyMealPlan', label: t('weeklyPlan.title'), icon: calendarOutline, route: '/weekly-meal-plan' },
+  { key: 'wallet', label: t('wallet.title'), icon: walletOutline, route: '/wallet' },
   { key: 'paymentMethods', label: t('profile.paymentMethods'), icon: cardOutline, route: '/payment-methods' },
   { key: 'notifications', label: t('profile.notifications'), icon: notificationsOutline, route: '/notifications' },
   { key: 'pickupLocation', label: t('profile.savedPickupLocation'), icon: locationOutline, route: '/pickup-location' },
@@ -181,8 +185,8 @@ const logoutAlertButtons = computed(() => [
   {
     text: t('profile.logOut'),
     role: 'destructive',
-    handler: () => {
-      auth.logout();
+    handler: async () => {
+      await auth.logout();
       router.replace('/login');
     },
   },
@@ -200,15 +204,15 @@ const logoutAlertButtons = computed(() => [
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background: linear-gradient(135deg, #2b2118 0%, #6b3f26 45%, #ff6b35 100%);
+  background: #fdeee1;
   border-radius: 0 0 28px 28px;
-  color: #fff;
+  color: #2b2118;
 }
 
 .profile-avatar {
   width: 84px;
   height: 84px;
-  border: 3px solid rgba(255, 255, 255, 0.6);
+  border: 3px solid rgba(255, 255, 255, 0.8);
 }
 
 .profile-header h1 {
@@ -220,7 +224,7 @@ const logoutAlertButtons = computed(() => [
 .profile-email {
   margin: 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(43, 33, 24, 0.65);
 }
 
 .edit-btn {
@@ -231,8 +235,8 @@ const logoutAlertButtons = computed(() => [
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.7);
+  color: #ff6b35;
   font-weight: 600;
   font-size: 12px;
 }

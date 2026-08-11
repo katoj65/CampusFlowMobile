@@ -1,34 +1,36 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="menu-content">
-      <div class="page-header">
-        <div class="page-header-top">
-          <div>
-            <h1>{{ $t('nav.menu') }}</h1>
-            <p class="page-sub">{{ t('menu.itemsSummary', { count: filteredMeals.length, total: meals.length }) }}</p>
+      <div class="sticky-header">
+        <div class="page-header">
+          <div class="page-header-top">
+            <div>
+              <h1>{{ $t('nav.menu') }}</h1>
+              <p class="page-sub">{{ t('menu.itemsSummary', { count: filteredMeals.length, total: meals.length }) }}</p>
+            </div>
+            <CartButton />
           </div>
-          <CartButton />
+          <ion-searchbar
+            v-model="searchQuery"
+            :placeholder="$t('menu.searchPlaceholder')"
+            class="menu-search"
+            :debounce="150"
+            show-clear-button="focus"
+          ></ion-searchbar>
         </div>
-        <ion-searchbar
-          v-model="searchQuery"
-          :placeholder="$t('menu.searchPlaceholder')"
-          class="menu-search"
-          :debounce="150"
-          show-clear-button="focus"
-        ></ion-searchbar>
-      </div>
 
-      <div class="category-bar">
-        <button
-          v-for="cat in categories"
-          :key="cat.id"
-          class="category-chip"
-          :class="{ active: selectedCategory === cat.id }"
-          @click="selectedCategory = cat.id"
-        >
-          <ion-icon :icon="cat.icon" />
-          <span>{{ cat.label }}</span>
-        </button>
+        <div class="category-bar">
+          <button
+            v-for="cat in categories"
+            :key="cat.id"
+            class="category-chip"
+            :class="{ active: selectedCategory === cat.id }"
+            @click="selectedCategory = cat.id"
+          >
+            <ion-icon :icon="cat.icon" />
+            <span>{{ cat.label }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="menu-grid" v-if="filteredMeals.length">
@@ -71,20 +73,22 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { IonPage, IonContent, IonIcon, IonSearchbar } from '@ionic/vue';
 import { flameOutline, addCircleOutline, searchOutline } from 'ionicons/icons';
-import { meals, categories } from '@/data/menu';
+import { CATEGORY_ALL } from '@/data/menu';
+import { useMenu } from '@/composables/useMenu';
 import { formatCurrency } from '@/utils/currency';
 import CartButton from '@/components/CartButton.vue';
 
 const router = useRouter();
 const { t } = useI18n();
+const { meals, categories } = useMenu();
 
-const selectedCategory = ref('all');
+const selectedCategory = ref(CATEGORY_ALL);
 const searchQuery = ref('');
 
 const filteredMeals = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   return meals.filter((meal) => {
-    const matchesCategory = selectedCategory.value === 'all' || meal.category === selectedCategory.value;
+    const matchesCategory = selectedCategory.value === CATEGORY_ALL || meal.category === selectedCategory.value;
     const matchesQuery = !query || meal.name.toLowerCase().includes(query);
     return matchesCategory && matchesQuery;
   });
@@ -98,6 +102,13 @@ function goToItem(id: number) {
 <style scoped>
 .menu-content {
   --background: var(--ion-color-step-50, #f4f5f8);
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--ion-color-step-50, #f4f5f8);
 }
 
 .page-header {
@@ -136,10 +147,6 @@ function goToItem(id: number) {
   gap: 10px;
   overflow-x: auto;
   padding: 4px 16px 16px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--ion-color-step-50, #f4f5f8);
 }
 
 .category-chip {

@@ -19,15 +19,15 @@
                 <span class="cart-line-price">{{ formatCurrency(line.unitPrice * line.qty) }}</span>
                 <div class="cart-line-actions">
                   <div class="mini-stepper">
-                    <button @click="cart.updateQty(line.lineId, line.qty - 1)" :disabled="line.qty <= 1">
+                    <button @click="onUpdateQty(line.lineId, line.qty - 1)" :disabled="line.qty <= 1">
                       <ion-icon :icon="removeOutline" />
                     </button>
                     <span>{{ line.qty }}</span>
-                    <button @click="cart.updateQty(line.lineId, line.qty + 1)" :disabled="line.qty >= 10">
+                    <button @click="onUpdateQty(line.lineId, line.qty + 1)" :disabled="line.qty >= 10">
                       <ion-icon :icon="addOutline" />
                     </button>
                   </div>
-                  <button class="remove-btn" :aria-label="$t('cart.removeItem')" @click="cart.removeLine(line.lineId)">
+                  <button class="remove-btn" :aria-label="$t('cart.removeItem')" @click="onRemoveLine(line.lineId)">
                     <ion-icon :icon="trashOutline" />
                   </button>
                 </div>
@@ -65,19 +65,53 @@
           <span>{{ formatCurrency(cart.subtotal.value) }}</span>
         </button>
       </div>
+
+      <ion-toast
+        :is-open="showToast"
+        :message="toastMessage"
+        :duration="1800"
+        position="top"
+        @didDismiss="showToast = false"
+      ></ion-toast>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent, IonIcon } from '@ionic/vue';
+import { useI18n } from 'vue-i18n';
+import { IonPage, IonContent, IonIcon, IonToast } from '@ionic/vue';
 import { chevronBackOutline, removeOutline, addOutline, trashOutline, cartOutline } from 'ionicons/icons';
 import { useCart } from '@/composables/useCart';
 import { formatCurrency } from '@/utils/currency';
 
 const router = useRouter();
+const { t } = useI18n();
 const cart = useCart();
+
+const showToast = ref(false);
+const toastMessage = ref('');
+function notify(message: string) {
+  toastMessage.value = message;
+  showToast.value = true;
+}
+
+async function onUpdateQty(lineId: string, qty: number) {
+  try {
+    await cart.updateQty(lineId, qty);
+  } catch {
+    notify(t('cart.updateFailed'));
+  }
+}
+
+async function onRemoveLine(lineId: string) {
+  try {
+    await cart.removeLine(lineId);
+  } catch {
+    notify(t('cart.removeFailed'));
+  }
+}
 </script>
 
 <style scoped>

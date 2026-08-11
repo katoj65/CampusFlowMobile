@@ -19,7 +19,8 @@ export interface Database {
           student_id: string | null;
           primary_diet: string;
           allergies: string[];
-          wallet_balance: number;
+          weekly_order_time: string;
+          university_id: number | null;
           member_since: string;
           updated_at: string;
         };
@@ -32,14 +33,15 @@ export interface Database {
           student_id: string | null;
           primary_diet: string;
           allergies: string[];
-          wallet_balance: number;
+          weekly_order_time: string;
+          university_id: number | null;
           updated_at: string;
         }>;
         Relationships: [];
       };
       payment_methods: {
         Row: {
-          id: string;
+          id: number;
           user_id: string;
           type: 'card' | 'wallet' | 'cash';
           label: string;
@@ -60,7 +62,7 @@ export interface Database {
         Relationships: [];
       };
       categories: {
-        Row: { id: string; label: string; icon: string };
+        Row: { id: number; label: string; icon: string };
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];
@@ -72,19 +74,20 @@ export interface Database {
           description: string;
           image_url: string;
           price: number;
-          category_id: string;
+          category_id: number;
           tags: string[];
           calories: number;
           available: number;
           ingredients: string[];
           customizable: boolean;
+          university_id: number;
         };
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];
       };
       pickup_locations: {
-        Row: { id: string; name: string; building: string; walk_time: string; hours: string };
+        Row: { id: number; name: string; building: string; walk_time: string; hours: string };
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];
@@ -93,19 +96,21 @@ export interface Database {
         Row: {
           id: number;
           user_id: string;
-          status: 'placed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
-          pickup_location_id: string | null;
+          status: 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
+          pickup_location_id: number | null;
           pickup_slot: string;
           code: string;
           total: number;
+          payment_method: string;
           placed_at: string;
         };
         Insert: {
           user_id: string;
-          pickup_location_id: string | null;
+          pickup_location_id: number | null;
           pickup_slot: string;
           code: string;
           total: number;
+          payment_method: string;
         };
         Update: { status: 'cancelled' };
         Relationships: [];
@@ -133,7 +138,7 @@ export interface Database {
       };
       notifications: {
         Row: {
-          id: string;
+          id: number;
           user_id: string;
           type: 'order' | 'reward' | 'menu' | 'system';
           title: string;
@@ -152,8 +157,93 @@ export interface Database {
         Update: { read: boolean };
         Relationships: [];
       };
+      wallets: {
+        Row: {
+          user_id: string;
+          balance: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      wallet_transactions: {
+        Row: {
+          id: number;
+          user_id: string;
+          type: 'top_up' | 'withdrawal' | 'payment' | 'refund';
+          amount: number;
+          balance_after: number;
+          order_id: number | null;
+          note: string | null;
+          payment_method_id: number | null;
+          source_label: string | null;
+          created_at: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      universities: {
+        Row: {
+          id: number;
+          name: string;
+          city: string;
+          country: string;
+          canteen_opens_at: string;
+          canteen_closes_at: string;
+          canteen_open_from_day: string;
+          canteen_open_to_day: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      cart_items: {
+        Row: {
+          id: number;
+          user_id: string;
+          meal_id: number;
+          name: string;
+          image_url: string;
+          unit_price: number;
+          qty: number;
+          summary: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          meal_id: number;
+          name: string;
+          image_url: string;
+          unit_price: number;
+          qty: number;
+          summary?: string;
+        };
+        Update: Partial<{ qty: number; updated_at: string }>;
+        Relationships: [];
+      };
+      weekly_meal_plan: {
+        Row: {
+          id: number;
+          user_id: string;
+          day_of_week: number;
+          meal_id: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { user_id: string; day_of_week: number; meal_id: number | null; updated_at?: string };
+        Update: { meal_id: number | null; updated_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      wallet_top_up: { Args: { p_amount: number; p_payment_method_id?: number | null }; Returns: number };
+      wallet_withdraw: { Args: { p_amount: number; p_payment_method_id?: number | null }; Returns: number };
+      wallet_pay: { Args: { p_amount: number; p_order_id?: number | null; p_note?: string | null }; Returns: number };
+    };
   };
 }

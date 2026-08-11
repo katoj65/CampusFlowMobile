@@ -17,7 +17,7 @@ import { IonIcon } from '@ionic/vue';
 import { cartOutline } from 'ionicons/icons';
 import { useCart } from '@/composables/useCart';
 
-withDefaults(defineProps<{ variant?: 'light' | 'dark' }>(), { variant: 'light' });
+withDefaults(defineProps<{ variant?: 'light' | 'dark' | 'tinted' }>(), { variant: 'light' });
 
 const router = useRouter();
 const { t } = useI18n();
@@ -47,6 +47,11 @@ const { itemCount } = useCart();
   background: var(--ion-card-background, #fff);
   color: var(--ion-text-color);
   box-shadow: 0 8px 24px -18px rgba(0, 0, 0, 0.4);
+}
+
+.cart-btn.tinted {
+  background: rgba(43, 33, 24, 0.07);
+  color: #2b2118;
 }
 
 .cart-badge {

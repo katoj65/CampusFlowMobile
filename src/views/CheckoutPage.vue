@@ -87,19 +87,31 @@
       </div>
 
       <div class="checkout-footer">
-        <button class="place-order-btn" @click="onPlaceOrder">
-          <span>{{ $t('checkout.placeOrder') }}</span>
-          <span>{{ formatCurrency(cart.subtotal.value) }}</span>
+        <button class="place-order-btn" :disabled="submitting" @click="onPlaceOrder">
+          <ion-spinner v-if="submitting" name="crescent" />
+          <template v-else>
+            <span>{{ $t('checkout.placeOrder') }}</span>
+            <span>{{ formatCurrency(cart.subtotal.value) }}</span>
+          </template>
         </button>
       </div>
+
+      <ion-toast
+        :is-open="showToast"
+        :message="toastMessage"
+        :duration="2200"
+        position="top"
+        @didDismiss="showToast = false"
+      ></ion-toast>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent, IonIcon } from '@ionic/vue';
+import { useI18n } from 'vue-i18n';
+import { IonPage, IonContent, IonIcon, IonToast, IonSpinner } from '@ionic/vue';
 import {
   chevronBackOutline,
   timeOutline,
@@ -112,12 +124,15 @@ import {
 import { useCart } from '@/composables/useCart';
 import { useOrders } from '@/composables/useOrders';
 import { usePaymentMethods } from '@/composables/usePaymentMethods';
+import { useWallet } from '@/composables/useWallet';
 import { formatCurrency } from '@/utils/currency';
 
 const router = useRouter();
+const { t } = useI18n();
 const cart = useCart();
 const orders = useOrders();
 const { methods: paymentMethods, defaultMethod } = usePaymentMethods();
+const { payWithWallet } = useWallet();
 
 onMounted(() => {
   if (cart.lines.length === 0) {
@@ -141,15 +156,57 @@ function generatePickupSlots(): string[] {
 const pickupSlots = generatePickupSlots();
 const selectedSlot = ref(pickupSlots[0]);
 
-const selectedPayment = ref(defaultMethod.value.id);
+// Payment methods now load from Supabase, so defaultMethod isn't
+// necessarily populated yet at setup time — pick it up once it arrives.
+const selectedPayment = ref(defaultMethod.value?.id ?? '');
+watch(defaultMethod, (method) => {
+  if (method && !selectedPayment.value) selectedPayment.value = method.id;
+});
 
 const notes = ref('');
 
-function onPlaceOrder() {
-  if (cart.lines.length === 0) return;
-  orders.placeOrder([...cart.lines], selectedSlot.value);
-  cart.clearCart();
-  router.replace('/order-confirmation');
+const submitting = ref(false);
+const showToast = ref(false);
+const toastMessage = ref('');
+
+function notify(message: string) {
+  toastMessage.value = message;
+  showToast.value = true;
+}
+
+async function onPlaceOrder() {
+  if (cart.lines.length === 0 || submitting.value) return;
+  submitting.value = true;
+
+  const method = paymentMethods.find((m) => m.id === selectedPayment.value);
+  try {
+    if (method?.type === 'wallet') {
+      // Only the wallet is a real, internally-tracked balance today —
+      // card/cash stay no-ops until a real payment gateway is wired up.
+      await payWithWallet(cart.subtotal.value, undefined, `Order (${cart.lines.length} items)`);
+    }
+  } catch {
+    submitting.value = false;
+    notify(t('checkout.insufficientWalletBalance'));
+    return;
+  }
+
+  try {
+    // Wallet's "detail" is its live balance — not something an order record
+    // should snapshot. Card/cash details (last 4 digits, "pay at counter")
+    // are fine to keep.
+    const paymentLabel = !method
+      ? t('checkout.paymentMethod')
+      : method.type === 'wallet'
+        ? method.label
+        : `${method.label} (${method.detail})`;
+    await orders.placeOrder([...cart.lines], selectedSlot.value, paymentLabel);
+    await cart.clearCart();
+    router.replace('/order-confirmation');
+  } catch {
+    submitting.value = false;
+    notify(t('checkout.paymentFailed'));
+  }
 }
 </script>
 

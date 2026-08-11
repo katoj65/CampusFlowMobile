@@ -1,5 +1,8 @@
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { cardOutline, walletOutline, cashOutline } from 'ionicons/icons';
+import { supabase } from '@/services/supabase';
+import { useWallet } from './useWallet';
+import { formatCurrency } from '@/utils/currency';
 
 export type PaymentMethodType = 'card' | 'wallet' | 'cash';
 
@@ -13,78 +16,117 @@ export interface PaymentMethod {
   isDefault: boolean;
 }
 
-const walletBalance = ref(12.4);
+// The wallet balance lives once in useWallet (backed by the wallets table)
+// — this just mirrors it into the wallet entry's display text below.
+const { balance } = useWallet();
 
-const methods = reactive<PaymentMethod[]>([
-  {
-    id: 'wallet',
-    type: 'wallet',
-    label: 'Campus Wallet',
-    detail: `€${walletBalance.value.toFixed(2)} balance`,
-    icon: walletOutline,
-    removable: false,
-    isDefault: false,
-  },
-  {
-    id: 'card-4242',
-    type: 'card',
-    label: 'Student Card',
-    detail: '•••• 4242',
-    icon: cardOutline,
-    removable: true,
-    isDefault: true,
-  },
-  {
-    id: 'cash',
-    type: 'cash',
-    label: 'Cash on Pickup',
-    detail: 'Pay at the counter',
-    icon: cashOutline,
-    removable: false,
-    isDefault: false,
-  },
-]);
+const methods = reactive<PaymentMethod[]>([]);
+const loaded = ref(false);
 
-let cardCounter = 1;
-
-function setDefault(id: string) {
-  for (const method of methods) {
-    method.isDefault = method.id === id;
-  }
+function iconFor(type: PaymentMethodType): string {
+  if (type === 'wallet') return walletOutline;
+  if (type === 'cash') return cashOutline;
+  return cardOutline;
 }
 
-function removeMethod(id: string) {
+async function fetchMethods() {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return;
+
+  const { data } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('created_at', { ascending: true });
+  if (!data) return;
+
+  const mapped: PaymentMethod[] = data.map((row) => ({
+    id: String(row.id),
+    type: row.type,
+    label: row.label,
+    detail: row.type === 'wallet' ? `${formatCurrency(balance.value)} balance` : row.detail,
+    icon: iconFor(row.type),
+    removable: row.removable,
+    isDefault: row.is_default,
+  }));
+
+  methods.splice(0, methods.length, ...mapped);
+  loaded.value = true;
+}
+
+async function setDefault(id: string) {
+  const target = methods.find((m) => m.id === id);
+  if (!target || target.isDefault) return;
+  const previousDefault = methods.find((m) => m.isDefault);
+
+  target.isDefault = true;
+  if (previousDefault) previousDefault.isDefault = false;
+
+  await Promise.all([
+    supabase.from('payment_methods').update({ is_default: true }).eq('id', Number(id)),
+    previousDefault
+      ? supabase.from('payment_methods').update({ is_default: false }).eq('id', Number(previousDefault.id))
+      : null,
+  ]);
+}
+
+async function removeMethod(id: string) {
   const index = methods.findIndex((m) => m.id === id);
   if (index === -1 || !methods[index].removable) return;
   const wasDefault = methods[index].isDefault;
+
+  const { error } = await supabase.from('payment_methods').delete().eq('id', Number(id));
+  if (error) throw new Error(error.message);
+
   methods.splice(index, 1);
   if (wasDefault && methods.length) {
     methods[0].isDefault = true;
+    await supabase.from('payment_methods').update({ is_default: true }).eq('id', Number(methods[0].id));
   }
 }
 
-function addCard(cardNumber: string, cardholderName: string) {
+async function addCard(cardNumber: string, cardholderName: string): Promise<PaymentMethod> {
   const digits = cardNumber.replace(/\s+/g, '');
   const last4 = digits.slice(-4) || '0000';
-  methods.push({
-    id: `card-${Date.now()}-${cardCounter++}`,
-    type: 'card',
-    label: cardholderName.trim() || 'New Card',
-    detail: `•••• ${last4}`,
+
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error('Not signed in');
+
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .insert({
+      user_id: userData.user.id,
+      type: 'card',
+      label: cardholderName.trim() || 'New Card',
+      detail: `•••• ${last4}`,
+      is_default: false,
+      removable: true,
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error(error?.message ?? 'Could not save card');
+
+  const method: PaymentMethod = {
+    id: String(data.id),
+    type: data.type,
+    label: data.label,
+    detail: data.detail,
     icon: cardOutline,
-    removable: true,
-    isDefault: false,
-  });
+    removable: data.removable,
+    isDefault: data.is_default,
+  };
+  methods.push(method);
+  return method;
 }
 
-function topUpWallet(amount: number) {
-  walletBalance.value += amount;
-  const wallet = methods.find((m) => m.id === 'wallet');
-  if (wallet) wallet.detail = `€${walletBalance.value.toFixed(2)} balance`;
-}
+watch(balance, (bal) => {
+  const wallet = methods.find((m) => m.type === 'wallet');
+  if (wallet) wallet.detail = `${formatCurrency(bal)} balance`;
+});
 
 const defaultMethod = computed(() => methods.find((m) => m.isDefault) ?? methods[0]);
 
 export function usePaymentMethods() {
-  return { methods, walletBalance, setDefault, removeMethod, addCard, topUpWallet, defaultMethod };
+  if (!loaded.value) fetchMethods();
+  return { methods, setDefault, removeMethod, addCard, defaultMethod, fetchMethods };
 }

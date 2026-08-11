@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import TabsPage from '../views/TabsPage.vue'
+import { authReady, useAuth } from '@/composables/useAuth';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -74,6 +75,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/PickupLocationPage.vue')
   },
   {
+    path: '/wallet',
+    component: () => import('@/views/WalletPage.vue')
+  },
+  {
+    path: '/weekly-meal-plan',
+    component: () => import('@/views/WeeklyMealPlanPage.vue')
+  },
+  {
     path: '/language',
     component: () => import('@/views/LanguagePage.vue')
   },
@@ -87,15 +96,18 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/login',
-    component: () => import('@/views/LoginPage.vue')
+    component: () => import('@/views/LoginPage.vue'),
+    meta: { public: true }
   },
   {
     path: '/register',
-    component: () => import('@/views/RegisterPage.vue')
+    component: () => import('@/views/RegisterPage.vue'),
+    meta: { public: true }
   },
   {
     path: '/forgot-password',
-    component: () => import('@/views/ForgotPasswordPage.vue')
+    component: () => import('@/views/ForgotPasswordPage.vue'),
+    meta: { public: true }
   }
 ]
 
@@ -103,5 +115,26 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
+
+// /terms is reachable pre-account-creation from the register flow, so it's
+// public too — set here rather than duplicating the meta block above.
+const termsRoute = routes.find((route) => route.path === '/terms');
+if (termsRoute) termsRoute.meta = { public: true };
+
+router.beforeEach(async (to) => {
+  // Wait for the initial session check so a cold start with a valid stored
+  // session isn't briefly misread as logged-out and bounced to /login.
+  await authReady;
+  const { isAuthenticated } = useAuth();
+
+  if (!to.meta.public && !isAuthenticated.value) {
+    return '/login';
+  }
+  // Signed-in users shouldn't land back on login/register from history
+  // (e.g. hardware back button after logging in).
+  if (to.meta.public && isAuthenticated.value && (to.path === '/login' || to.path === '/register')) {
+    return '/tabs/tab1';
+  }
+});
 
 export default router

@@ -1,8 +1,9 @@
 import { reactive, ref } from 'vue';
+import { supabase } from '@/services/supabase';
 import type { CartLine } from './useCart';
-import { useNotifications } from './useNotifications';
+import { pickupLocations, usePickupLocation } from './usePickupLocation';
 
-export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
 
 export interface OrderItem {
   name: string;
@@ -11,68 +12,50 @@ export interface OrderItem {
 }
 
 export interface ActiveOrder {
-  id: string;
+  id: number;
   placedAt: string;
   pickupSlot: string;
   location: string;
   status: OrderStatus;
   items: OrderItem[];
   total: number;
+  paymentMethod: string;
   code: string;
 }
 
 export interface PastOrder {
-  id: string;
+  id: number;
   date: string;
+  pickupSlot: string;
   items: OrderItem[];
   total: number;
+  paymentMethod: string;
   status: OrderStatus;
 }
 
-const PICKUP_LOCATION = 'Mensa Ground Floor, Counter 2';
+const activeOrder = ref<ActiveOrder | null>(null);
+const orderHistory = reactive<PastOrder[]>([]);
+const loaded = ref(false);
 
-const activeOrder = ref<ActiveOrder | null>({
-  id: '10482',
-  placedAt: '12:12 PM',
-  pickupSlot: '12:45 PM – 1:00 PM',
-  location: PICKUP_LOCATION,
-  status: 'preparing',
-  items: [
-    { name: 'Grilled Chicken & Herb Rice Bowl', qty: 1, price: 4.8 },
-    { name: 'Iced Coffee', qty: 1, price: 2.1 },
-  ],
-  total: 6.9,
-  code: '482-91',
-});
+let channel: ReturnType<typeof supabase.channel> | null = null;
 
-const orderHistory = reactive<PastOrder[]>([
-  {
-    id: '10391',
-    date: 'Yesterday, 1:05 PM',
-    items: [
-      { name: 'Buddha Bowl', qty: 1, price: 3.9 },
-      { name: 'Mango Berry Smoothie', qty: 1, price: 2.8 },
-    ],
-    total: 6.7,
-    status: 'completed',
-  },
-  {
-    id: '10276',
-    date: 'Mon, Aug 3 · 12:30 PM',
-    items: [{ name: 'Classic Beef Burger', qty: 1, price: 5.1 }],
-    total: 5.1,
-    status: 'completed',
-  },
-  {
-    id: '10142',
-    date: 'Fri, Jul 31 · 11:50 AM',
-    items: [{ name: 'Pasta Primavera', qty: 1, price: 4.2 }],
-    total: 4.2,
-    status: 'cancelled',
-  },
-]);
+function locationLabel(id: number | null): string {
+  return pickupLocations.find((l) => l.id === id)?.name ?? '';
+}
 
-let orderCounter = 10483;
+function formatPlacedAt(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatOrderDate(iso: string): string {
+  return new Date(iso).toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 function generateCode(): string {
   const a = Math.floor(100 + Math.random() * 900);
@@ -80,66 +63,128 @@ function generateCode(): string {
   return `${a}-${b}`;
 }
 
-function placeOrder(cartLines: CartLine[], pickupSlot: string): ActiveOrder {
-  if (activeOrder.value) {
-    orderHistory.unshift({
-      id: activeOrder.value.id,
-      date: 'Earlier today',
-      items: activeOrder.value.items,
-      total: activeOrder.value.total,
-      status: 'completed',
-    });
-  }
-
-  const items: OrderItem[] = cartLines.map((line) => ({
-    name: line.summary ? `${line.name} (${line.summary})` : line.name,
-    qty: line.qty,
-    price: line.unitPrice,
-  }));
-
-  const order: ActiveOrder = {
-    id: String(orderCounter++),
-    placedAt: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-    pickupSlot,
-    location: PICKUP_LOCATION,
-    status: 'placed',
-    items,
-    total: items.reduce((sum, item) => sum + item.price * item.qty, 0),
-    code: generateCode(),
-  };
-
-  activeOrder.value = order;
-
-  useNotifications().addNotification({
-    type: 'order',
-    title: `Order #${order.id} placed`,
-    message: `We'll have it ready for pickup at ${order.pickupSlot}.`,
-    actionRoute: '/tabs/tab3',
-  });
-
-  return order;
+async function loadItemsFor(orderId: number): Promise<OrderItem[]> {
+  const { data } = await supabase.from('order_items').select('name, qty, unit_price').eq('order_id', orderId);
+  return (data ?? []).map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price }));
 }
 
-function cancelActiveOrder() {
-  if (!activeOrder.value) return;
-  const cancelledId = activeOrder.value.id;
-  orderHistory.unshift({
-    id: cancelledId,
-    date: 'Just now',
-    items: activeOrder.value.items,
-    total: activeOrder.value.total,
-    status: 'cancelled',
-  });
-  activeOrder.value = null;
+async function fetchOrders() {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return;
 
-  useNotifications().addNotification({
-    type: 'order',
-    title: `Order #${cancelledId} cancelled`,
-    message: 'Your pickup slot has been released.',
-    actionRoute: '/tabs/tab3',
-  });
+  const { data: rows } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('placed_at', { ascending: false });
+  if (!rows) return;
+
+  const active = rows.find((r) => r.status === 'placed' || r.status === 'preparing' || r.status === 'ready');
+  if (active) {
+    activeOrder.value = {
+      id: active.id,
+      placedAt: formatPlacedAt(active.placed_at),
+      pickupSlot: active.pickup_slot,
+      location: locationLabel(active.pickup_location_id),
+      status: active.status,
+      items: await loadItemsFor(active.id),
+      total: active.total,
+      paymentMethod: active.payment_method,
+      code: active.code,
+    };
+  } else {
+    activeOrder.value = null;
+  }
+
+  const historyEntries: PastOrder[] = [];
+  for (const row of rows) {
+    historyEntries.push({
+      id: row.id,
+      date: formatOrderDate(row.placed_at),
+      pickupSlot: row.pickup_slot,
+      items: await loadItemsFor(row.id),
+      total: row.total,
+      paymentMethod: row.payment_method,
+      status: row.status,
+    });
+  }
+  orderHistory.splice(0, orderHistory.length, ...historyEntries);
+  loaded.value = true;
+}
+
+function subscribeToOrders(userId: string) {
+  if (channel) return;
+  channel = supabase
+    .channel('orders-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${userId}` },
+      () => fetchOrders()
+    )
+    .subscribe();
+}
+
+async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMethod: string): Promise<ActiveOrder> {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error('Not signed in');
+
+  const { selectedLocationId } = usePickupLocation();
+  const total = cartLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
+  const code = generateCode();
+
+  const { data: order, error } = await supabase
+    .from('orders')
+    .insert({
+      user_id: userData.user.id,
+      pickup_location_id: selectedLocationId.value,
+      pickup_slot: pickupSlot,
+      code,
+      total,
+      payment_method: paymentMethod,
+    })
+    .select()
+    .single();
+  if (error || !order) throw new Error(error?.message ?? 'Could not place order');
+
+  const itemRows = cartLines.map((line) => ({
+    order_id: order.id,
+    meal_id: line.mealId,
+    name: line.summary ? `${line.name} (${line.summary})` : line.name,
+    qty: line.qty,
+    unit_price: line.unitPrice,
+    summary: line.summary,
+  }));
+  const { error: itemsError } = await supabase.from('order_items').insert(itemRows);
+  if (itemsError) throw new Error(itemsError.message);
+
+  const newActive: ActiveOrder = {
+    id: order.id,
+    placedAt: formatPlacedAt(order.placed_at),
+    pickupSlot: order.pickup_slot,
+    location: locationLabel(order.pickup_location_id),
+    status: order.status,
+    items: itemRows.map((row) => ({ name: row.name, qty: row.qty, price: row.unit_price })),
+    total: order.total,
+    paymentMethod: order.payment_method,
+    code: order.code,
+  };
+  activeOrder.value = newActive;
+  return newActive;
+}
+
+async function cancelActiveOrder() {
+  if (!activeOrder.value) return;
+  const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', activeOrder.value.id);
+  if (error) throw new Error(error.message);
+  await fetchOrders();
 }
 
 export function useOrders() {
-  return { activeOrder, orderHistory, placeOrder, cancelActiveOrder };
+  if (!loaded.value) {
+    fetchOrders().then(async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) subscribeToOrders(userData.user.id);
+    });
+  }
+  return { activeOrder, orderHistory, placeOrder, cancelActiveOrder, fetchOrders };
 }

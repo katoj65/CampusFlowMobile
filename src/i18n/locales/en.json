@@ -23,8 +23,11 @@
       "phone": "Phone",
       "studentInfo": "Student Info",
       "studentId": "Student ID",
+      "studentIdPlaceholder": "Add your student ID",
+      "university": "University",
+      "universityPlaceholder": "Add your university",
       "memberSince": "Member Since",
-      "studentIdHint": "Student ID is managed by your university and can't be edited here.",
+      "studentIdHint": "Use the ID from your university student card — this helps canteen staff verify pickups.",
       "language": "Language",
       "saveChanges": "Save Changes",
       "saved": "Saved",
@@ -43,11 +46,8 @@
     "liveQueueStatus": "Live Queue Status",
     "mensaGroundFloor": "Mensa Ground Floor",
     "live": "Live",
-    "meterLow": "Low",
-    "meterMedium": "Medium",
-    "meterHigh": "High",
-    "estWaitTime": "Est. wait time",
-    "untilYourPickup": "Until your pickup",
+    "waitMinutes": "{minutes} min wait",
+    "pickupAt": "Pickup {slot}",
     "recommendedForYou": "Recommended for You",
     "curatedForDiet": "Curated for your {diet} preference",
     "seeAll": "See all",
@@ -108,11 +108,13 @@
     "statusPlaced": "Placed",
     "statusPreparing": "Preparing",
     "statusReady": "Ready for Pickup",
-    "statusCompleted": "Completed",
+    "statusPickedUp": "Picked Up",
     "statusCancelled": "Cancelled",
     "itemsAddedToCart": "{count} item added to your cart | {count} items added to your cart",
     "keepOrder": "Keep Order",
-    "orderCancelled": "Order cancelled"
+    "orderCancelled": "Order cancelled",
+    "cancelFailed": "Couldn't cancel your order. Please try again.",
+    "reorderFailed": "Couldn't add those items to your cart. Please try again."
   },
   "rewards": {
     "pts": "pts",
@@ -180,7 +182,9 @@
     "emptyTitle": "Your cart is empty",
     "emptyHint": "Browse the menu and add something tasty.",
     "proceedToCheckout": "Proceed to Checkout",
-    "cartAria": "Cart, {count} item | Cart, {count} items"
+    "cartAria": "Cart, {count} item | Cart, {count} items",
+    "updateFailed": "Couldn't update quantity. Please try again.",
+    "removeFailed": "Couldn't remove that item. Please try again."
   },
   "checkout": {
     "title": "Checkout",
@@ -190,7 +194,9 @@
     "managePaymentMethods": "Manage payment methods",
     "orderNotes": "Order Notes (optional)",
     "notesPlaceholder": "E.g. no napkins, extra spicy...",
-    "placeOrder": "Place Order"
+    "placeOrder": "Place Order",
+    "insufficientWalletBalance": "Your wallet balance is too low for this order. Top up or choose another payment method.",
+    "paymentFailed": "Payment couldn't be completed. Please try again."
   },
   "confirmation": {
     "orderPlaced": "Order Placed!",
@@ -211,7 +217,7 @@
   },
   "payment": {
     "campusWallet": "Campus Wallet",
-    "topUp": "Top Up {amount}",
+    "manageWallet": "Manage Wallet",
     "savedMethods": "Saved Methods",
     "default": "Default",
     "removeMethodAria": "Remove payment method",
@@ -222,15 +228,63 @@
     "demoDisclaimer": "This is a demo — no real card data is processed or stored.",
     "setAsDefault": "{label} set as default",
     "removed": "{label} removed",
-    "addedToWallet": "{amount} added to your wallet",
-    "cardAdded": "Card added"
+    "removeFailed": "Couldn't remove that payment method. Please try again.",
+    "cardAdded": "Card added",
+    "cardAddFailed": "Couldn't save that card. Please try again."
+  },
+  "wallet": {
+    "title": "Campus Wallet",
+    "availableBalance": "Available Balance",
+    "addMoney": "Add Money",
+    "withdraw": "Withdraw",
+    "selectCard": "Card",
+    "savedCard": "Saved Card",
+    "newCard": "New Card",
+    "amountPlaceholder": "Amount",
+    "quickAmounts": "Quick amounts",
+    "confirm": "Confirm",
+    "history": "Transaction History",
+    "noTransactions": "No transactions yet",
+    "noTransactionsHint": "Top up your wallet to start paying for meals in one tap.",
+    "topUpSuccess": "{amount} added to your wallet",
+    "withdrawSuccess": "{amount} withdrawn from your wallet",
+    "invalidAmount": "Enter a valid amount",
+    "processing": "Processing...",
+    "types": {
+      "top_up": "Top Up",
+      "withdrawal": "Withdrawal",
+      "payment": "Meal Payment",
+      "refund": "Refund"
+    }
   },
   "diet": {
     "intro": "This shapes your recommendations on Home and helps us take extra care preparing your order.",
     "primaryDiet": "Primary Diet",
     "allergiesIntolerances": "Allergies & Intolerances",
     "selectAllThatApply": "Select any that apply — we'll flag these for the kitchen.",
-    "crossContaminationDisclaimer": "Always confirm allergen details with canteen staff — we can't guarantee zero cross-contamination."
+    "crossContaminationDisclaimer": "Always confirm allergen details with canteen staff — we can't guarantee zero cross-contamination.",
+    "updateFailed": "Couldn't save your preference. Please try again."
+  },
+  "weeklyPlan": {
+    "title": "Weekly Meal Plan",
+    "intro": "Pick what you'd like to eat on each day of the week, based on your school's menu, and set when your order should go in.",
+    "orderTime": "Order Time",
+    "orderTimeHint": "Applies to every day in your plan.",
+    "days": "Days",
+    "noMeal": "No meal selected",
+    "day": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "savePlan": "Save Plan",
+    "saved": "Saved",
+    "planSaved": "Weekly meal plan saved",
+    "saveFailed": "Couldn't save your plan. Please try again."
   },
   "notifications": {
     "markAllRead": "Mark all read",
@@ -326,6 +380,7 @@
       "subtitle": "Join CampusFlow and skip the canteen queue for good.",
       "firstNamePlaceholder": "First name",
       "lastNamePlaceholder": "Last name",
+      "universityPlaceholder": "Select your university",
       "confirmPasswordPlaceholder": "Confirm password",
       "agreeToThe": "I agree to the",
       "termsAndPrivacy": "Terms & Privacy Policy",

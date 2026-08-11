@@ -27,11 +27,20 @@ supabase.auth.onAuthStateChange((_event, session) => {
   currentUser.value = session?.user ?? null;
 });
 
+let resolveAuthReady: () => void;
+/** Resolves once the initial session check completes — the router guard
+ * awaits this so a cold start doesn't briefly misjudge an already-logged-in
+ * user as unauthenticated and bounce them to /login. */
+export const authReady = new Promise<void>((resolve) => {
+  resolveAuthReady = resolve;
+});
+
 async function init() {
   if (sessionLoaded.value) return;
   sessionLoaded.value = true;
   const { data } = await supabase.auth.getSession();
   currentUser.value = data.session?.user ?? null;
+  resolveAuthReady();
 }
 init();
 
@@ -44,6 +53,7 @@ interface RegisterPayload {
   password: string;
   passwordConfirmation: string;
   telephone?: string;
+  universityId: number;
 }
 
 interface RegisterResult {
@@ -65,6 +75,7 @@ async function register(payload: RegisterPayload): Promise<RegisterResult> {
         first_name: payload.firstName,
         last_name: payload.lastName,
         telephone: payload.telephone,
+        university_id: payload.universityId,
       },
     },
   });

@@ -23,8 +23,11 @@
       "phone": "Telefon",
       "studentInfo": "Studierendendaten",
       "studentId": "Studierenden-ID",
+      "studentIdPlaceholder": "Studierenden-ID hinzufügen",
+      "university": "Universität",
+      "universityPlaceholder": "Universität hinzufügen",
       "memberSince": "Mitglied seit",
-      "studentIdHint": "Die Studierenden-ID wird von deiner Universität verwaltet und kann hier nicht bearbeitet werden.",
+      "studentIdHint": "Verwende die ID von deinem Studierendenausweis — das hilft dem Mensa-Personal bei der Abholung.",
       "language": "Sprache",
       "saveChanges": "Änderungen speichern",
       "saved": "Gespeichert",
@@ -43,11 +46,8 @@
     "liveQueueStatus": "Live-Warteschlangenstatus",
     "mensaGroundFloor": "Mensa Erdgeschoss",
     "live": "Live",
-    "meterLow": "Niedrig",
-    "meterMedium": "Mittel",
-    "meterHigh": "Hoch",
-    "estWaitTime": "Geschätzte Wartezeit",
-    "untilYourPickup": "Bis zu deiner Abholung",
+    "waitMinutes": "{minutes} Min. Wartezeit",
+    "pickupAt": "Abholung {slot}",
     "recommendedForYou": "Für dich empfohlen",
     "curatedForDiet": "Ausgewählt für deine Präferenz „{diet}“",
     "seeAll": "Alle ansehen",
@@ -108,11 +108,13 @@
     "statusPlaced": "Aufgegeben",
     "statusPreparing": "Wird zubereitet",
     "statusReady": "Bereit zur Abholung",
-    "statusCompleted": "Abgeschlossen",
+    "statusPickedUp": "Abgeholt",
     "statusCancelled": "Storniert",
     "itemsAddedToCart": "{count} Artikel wurde deinem Warenkorb hinzugefügt | {count} Artikel wurden deinem Warenkorb hinzugefügt",
     "keepOrder": "Bestellung behalten",
-    "orderCancelled": "Bestellung storniert"
+    "orderCancelled": "Bestellung storniert",
+    "cancelFailed": "Bestellung konnte nicht storniert werden. Bitte versuche es erneut.",
+    "reorderFailed": "Artikel konnten nicht zum Warenkorb hinzugefügt werden. Bitte versuche es erneut."
   },
   "rewards": {
     "pts": "Pkt.",
@@ -180,7 +182,9 @@
     "emptyTitle": "Dein Warenkorb ist leer",
     "emptyHint": "Durchstöbere die Speisekarte und füge etwas Leckeres hinzu.",
     "proceedToCheckout": "Weiter zur Kasse",
-    "cartAria": "Warenkorb, {count} Artikel | Warenkorb, {count} Artikel"
+    "cartAria": "Warenkorb, {count} Artikel | Warenkorb, {count} Artikel",
+    "updateFailed": "Menge konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+    "removeFailed": "Artikel konnte nicht entfernt werden. Bitte versuche es erneut."
   },
   "checkout": {
     "title": "Kasse",
@@ -190,7 +194,9 @@
     "managePaymentMethods": "Zahlungsmethoden verwalten",
     "orderNotes": "Bestellhinweise (optional)",
     "notesPlaceholder": "Z. B. keine Servietten, extra scharf...",
-    "placeOrder": "Bestellung aufgeben"
+    "placeOrder": "Bestellung aufgeben",
+    "insufficientWalletBalance": "Dein Wallet-Guthaben reicht für diese Bestellung nicht aus. Lade auf oder wähle eine andere Zahlungsmethode.",
+    "paymentFailed": "Zahlung konnte nicht abgeschlossen werden. Bitte versuche es erneut."
   },
   "confirmation": {
     "orderPlaced": "Bestellung aufgegeben!",
@@ -211,7 +217,7 @@
   },
   "payment": {
     "campusWallet": "Campus-Wallet",
-    "topUp": "Aufladen {amount}",
+    "manageWallet": "Wallet verwalten",
     "savedMethods": "Gespeicherte Methoden",
     "default": "Standard",
     "removeMethodAria": "Zahlungsmethode entfernen",
@@ -222,15 +228,63 @@
     "demoDisclaimer": "Dies ist eine Demo — es werden keine echten Kartendaten verarbeitet oder gespeichert.",
     "setAsDefault": "{label} als Standard festgelegt",
     "removed": "{label} entfernt",
-    "addedToWallet": "{amount} deiner Wallet gutgeschrieben",
-    "cardAdded": "Karte hinzugefügt"
+    "removeFailed": "Zahlungsmethode konnte nicht entfernt werden. Bitte versuche es erneut.",
+    "cardAdded": "Karte hinzugefügt",
+    "cardAddFailed": "Karte konnte nicht gespeichert werden. Bitte versuche es erneut."
+  },
+  "wallet": {
+    "title": "Campus-Wallet",
+    "availableBalance": "Verfügbares Guthaben",
+    "addMoney": "Geld einzahlen",
+    "withdraw": "Abheben",
+    "selectCard": "Karte",
+    "savedCard": "Gespeicherte Karte",
+    "newCard": "Neue Karte",
+    "amountPlaceholder": "Betrag",
+    "quickAmounts": "Schnellauswahl",
+    "confirm": "Bestätigen",
+    "history": "Transaktionsverlauf",
+    "noTransactions": "Noch keine Transaktionen",
+    "noTransactionsHint": "Lade dein Wallet auf, um Mahlzeiten mit einem Klick zu bezahlen.",
+    "topUpSuccess": "{amount} deiner Wallet gutgeschrieben",
+    "withdrawSuccess": "{amount} von deiner Wallet abgehoben",
+    "invalidAmount": "Bitte gib einen gültigen Betrag ein",
+    "processing": "Wird verarbeitet...",
+    "types": {
+      "top_up": "Aufladung",
+      "withdrawal": "Abhebung",
+      "payment": "Essenszahlung",
+      "refund": "Rückerstattung"
+    }
   },
   "diet": {
     "intro": "Dies beeinflusst deine Empfehlungen auf der Startseite und hilft uns, deine Bestellung mit besonderer Sorgfalt zuzubereiten.",
     "primaryDiet": "Haupternährungsweise",
     "allergiesIntolerances": "Allergien & Unverträglichkeiten",
     "selectAllThatApply": "Wähle alle zutreffenden aus — wir markieren diese für die Küche.",
-    "crossContaminationDisclaimer": "Bestätige Allergeninformationen immer beim Mensa-Personal — wir können Kreuzkontamination nicht vollständig ausschließen."
+    "crossContaminationDisclaimer": "Bestätige Allergeninformationen immer beim Mensa-Personal — wir können Kreuzkontamination nicht vollständig ausschließen.",
+    "updateFailed": "Deine Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut."
+  },
+  "weeklyPlan": {
+    "title": "Wochenspeiseplan",
+    "intro": "Wähle basierend auf dem Speiseplan deiner Schule aus, was du an jedem Wochentag essen möchtest, und lege fest, wann deine Bestellung aufgegeben werden soll.",
+    "orderTime": "Bestellzeit",
+    "orderTimeHint": "Gilt für jeden Tag in deinem Plan.",
+    "days": "Tage",
+    "noMeal": "Kein Gericht ausgewählt",
+    "day": {
+      "monday": "Montag",
+      "tuesday": "Dienstag",
+      "wednesday": "Mittwoch",
+      "thursday": "Donnerstag",
+      "friday": "Freitag",
+      "saturday": "Samstag",
+      "sunday": "Sonntag"
+    },
+    "savePlan": "Plan speichern",
+    "saved": "Gespeichert",
+    "planSaved": "Wochenspeiseplan gespeichert",
+    "saveFailed": "Dein Plan konnte nicht gespeichert werden. Bitte versuche es erneut."
   },
   "notifications": {
     "markAllRead": "Alle als gelesen markieren",
@@ -326,6 +380,7 @@
       "subtitle": "Werde Teil von CampusFlow und umgehe die Mensa-Warteschlange endgültig.",
       "firstNamePlaceholder": "Vorname",
       "lastNamePlaceholder": "Nachname",
+      "universityPlaceholder": "Wähle deine Universität",
       "confirmPasswordPlaceholder": "Passwort bestätigen",
       "agreeToThe": "Ich stimme den",
       "termsAndPrivacy": "Nutzungsbedingungen & Datenschutzrichtlinie zu",

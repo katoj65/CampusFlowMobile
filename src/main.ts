@@ -1,7 +1,8 @@
-import { createApp } from 'vue'
+import { createApp, nextTick } from 'vue'
 import App from './App.vue'
 import router from './router';
 import i18n from './i18n';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 import { IonicVue } from '@ionic/vue';
 
@@ -40,6 +41,10 @@ const app = createApp(App)
   .use(router)
   .use(i18n);
 
-router.isReady().then(() => {
+router.isReady().then(async () => {
   app.mount('#app');
+  // Wait for the mounted route to actually paint before dropping the
+  // native splash, so it bridges the gap instead of a blank WebView.
+  await nextTick();
+  await SplashScreen.hide();
 });

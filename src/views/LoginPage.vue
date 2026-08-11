@@ -148,9 +148,9 @@ async function onLogin() {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background: linear-gradient(135deg, #2b2118 0%, #6b3f26 45%, #ff6b35 100%);
+  background: #fdeee1;
   border-radius: 0 0 36px 36px;
-  color: #fff;
+  color: #2b2118;
 }
 
 .brand-mark {
@@ -163,7 +163,7 @@ async function onLogin() {
   justify-content: center;
   padding: 10px;
   margin-bottom: 12px;
-  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
 
@@ -182,7 +182,7 @@ async function onLogin() {
 .auth-hero p {
   margin: 4px 0 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(43, 33, 24, 0.65);
 }
 
 .auth-sheet {

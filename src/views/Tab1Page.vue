@@ -4,7 +4,7 @@
       <section class="hero">
         <div class="hero-top">
           <div class="hero-greeting-block">
-            <p class="hero-eyebrow">{{ formattedDate }}</p>
+            <p class="hero-eyebrow">{{ formattedDateTime }}</p>
             <h1 class="hero-greeting">{{ greeting }}, {{ studentName }} <span class="wave">👋</span></h1>
           </div>
           <div class="hero-actions">
@@ -12,7 +12,7 @@
               <ion-icon :icon="notificationsOutline" />
               <span v-if="unreadCount > 0" class="notif-dot"></span>
             </button>
-            <CartButton variant="dark" />
+            <CartButton variant="tinted" />
             <ion-avatar class="hero-avatar">
               <img :src="avatarUrl" :alt="t('dashboard.profilePhotoAlt', { name: studentName })" />
             </ion-avatar>
@@ -43,7 +43,7 @@
           </div>
         </div>
 
-        <button class="special-card" @click="goToItem(special.id)">
+        <button class="special-card" v-if="special" @click="goToItem(special.id)">
           <img :src="special.image" :alt="special.name" class="special-image" loading="lazy" />
           <div class="special-scrim"></div>
           <div class="special-content">
@@ -69,23 +69,25 @@
             </div>
             <span class="live-dot"><span class="live-dot-core"></span>{{ $t('dashboard.live') }}</span>
           </div>
-          <div class="queue-meter">
-            <div class="queue-meter-track">
-              <div class="queue-meter-fill" :class="queueChipClass" :style="{ width: queueMeterWidth }"></div>
-            </div>
-            <div class="queue-meter-labels">
-              <span>{{ $t('dashboard.meterLow') }}</span><span>{{ $t('dashboard.meterMedium') }}</span><span>{{ $t('dashboard.meterHigh') }}</span>
-            </div>
+
+          <div class="queue-summary">
+            <span class="queue-level-badge" :class="queueChipClass">
+              <ion-icon :icon="peopleOutline" />
+              {{ queueLevelLabel }}
+            </span>
+            <span class="queue-wait">
+              <ion-icon :icon="hourglassOutline" />
+              {{ t('dashboard.waitMinutes', { minutes: queue.estimateMinutes }) }}
+            </span>
           </div>
-          <div class="queue-stats">
-            <div>
-              <strong>{{ queue.estimateMinutes }} min</strong>
-              <span>{{ $t('dashboard.estWaitTime') }}</span>
-            </div>
-            <div>
-              <strong>{{ minutesToPickup }} min</strong>
-              <span>{{ $t('dashboard.untilYourPickup') }}</span>
-            </div>
+          <div class="queue-meter-track">
+            <div class="queue-meter-fill" :class="queueChipClass" :style="{ width: queueMeterWidth }"></div>
+          </div>
+
+          <div class="queue-pickup-row" v-if="latestOrder">
+            <ion-icon :icon="timeOutline" />
+            <span class="queue-pickup-slot">{{ t('dashboard.pickupAt', { slot: latestOrder.pickupSlot }) }}</span>
+            <span class="queue-pickup-eta">{{ t('dashboard.inMinutes', { minutes: minutesToPickup }) }}</span>
           </div>
         </ion-card>
 
@@ -231,11 +233,14 @@ import {
   trophyOutline,
   giftOutline,
   notificationsOutline,
+  hourglassOutline,
 } from 'ionicons/icons';
-import { meals as menuItems, findMeal } from '@/data/menu';
+import { useMenu } from '@/composables/useMenu';
 import { formatCurrency } from '@/utils/currency';
 import { useNotifications } from '@/composables/useNotifications';
 import { useProfile } from '@/composables/useProfile';
+import { useOrders } from '@/composables/useOrders';
+import { supabase } from '@/services/supabase';
 import CartButton from '@/components/CartButton.vue';
 
 interface MacroItem {
@@ -269,9 +274,11 @@ onUnmounted(() => {
   if (clockTimer) window.clearInterval(clockTimer);
 });
 
-const formattedDate = computed(() =>
-  now.value.toLocaleDateString(locale.value, { weekday: 'long', month: 'long', day: 'numeric' })
-);
+const formattedDateTime = computed(() => {
+  const date = now.value.toLocaleDateString(locale.value, { weekday: 'long', month: 'long', day: 'numeric' });
+  const time = now.value.toLocaleTimeString(locale.value, { hour: 'numeric', minute: '2-digit' });
+  return `${date} · ${time}`;
+});
 
 const greeting = computed(() => {
   const hour = now.value.getHours();
@@ -280,29 +287,89 @@ const greeting = computed(() => {
   return t('dashboard.goodEvening');
 });
 
-function formatHour(hour: number): string {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${displayHour}:00 ${period}`;
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+interface CanteenHours {
+  opensAt: string;
+  closesAt: string;
+  openFromDay: string;
+  openToDay: string;
 }
 
-const mensaHours = { openHour: 8, closeHour: 20 };
-const mensaHoursLabel = `${formatHour(mensaHours.openHour)} – ${formatHour(mensaHours.closeHour)}`;
+const canteenHours = ref<CanteenHours | null>(null);
+
+async function fetchCanteenHours() {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('university_id')
+    .eq('id', userData.user.id)
+    .single();
+  if (!profile?.university_id) return;
+
+  const { data: university } = await supabase
+    .from('universities')
+    .select('canteen_opens_at, canteen_closes_at, canteen_open_from_day, canteen_open_to_day')
+    .eq('id', profile.university_id)
+    .single();
+  if (!university) return;
+
+  canteenHours.value = {
+    opensAt: university.canteen_opens_at,
+    closesAt: university.canteen_closes_at,
+    openFromDay: university.canteen_open_from_day,
+    openToDay: university.canteen_open_to_day,
+  };
+}
+onMounted(fetchCanteenHours);
+
+function parseTimeOfDay(value: string): { hours: number; minutes: number } {
+  const [hours, minutes] = value.split(':').map(Number);
+  return { hours, minutes };
+}
+
+function formatTimeOfDay(value: string): string {
+  const { hours, minutes } = parseTimeOfDay(value);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+function isDayWithinRange(dayIndex: number, fromIndex: number, toIndex: number): boolean {
+  if (fromIndex <= toIndex) return dayIndex >= fromIndex && dayIndex <= toIndex;
+  return dayIndex >= fromIndex || dayIndex <= toIndex;
+}
+
+const mensaHoursLabel = computed(() => {
+  if (!canteenHours.value) return '';
+  return `${formatTimeOfDay(canteenHours.value.opensAt)} – ${formatTimeOfDay(canteenHours.value.closesAt)}`;
+});
 
 const mensaOpen = computed(() => {
-  const hour = now.value.getHours();
-  return hour >= mensaHours.openHour && hour < mensaHours.closeHour;
+  if (!canteenHours.value) return false;
+  const todayIndex = (now.value.getDay() + 6) % 7;
+  const fromIndex = WEEKDAYS.indexOf(canteenHours.value.openFromDay);
+  const toIndex = WEEKDAYS.indexOf(canteenHours.value.openToDay);
+  if (!isDayWithinRange(todayIndex, fromIndex, toIndex)) return false;
+
+  const opens = parseTimeOfDay(canteenHours.value.opensAt);
+  const closes = parseTimeOfDay(canteenHours.value.closesAt);
+  const nowMinutes = now.value.getHours() * 60 + now.value.getMinutes();
+  return nowMinutes >= opens.hours * 60 + opens.minutes && nowMinutes < closes.hours * 60 + closes.minutes;
 });
 
 const closingInLabel = computed(() => {
-  if (!mensaOpen.value) return t('dashboard.closed');
+  if (!mensaOpen.value || !canteenHours.value) return t('dashboard.closed');
+  const { hours, minutes } = parseTimeOfDay(canteenHours.value.closesAt);
   const close = new Date(now.value);
-  close.setHours(mensaHours.closeHour, 0, 0, 0);
+  close.setHours(hours, minutes, 0, 0);
   const diffMinutes = Math.max(0, Math.round((close.getTime() - now.value.getTime()) / 60000));
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-  if (hours <= 0) return `${minutes} min`;
-  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  const remainingMinutes = diffMinutes % 60;
+  if (diffHours <= 0) return `${remainingMinutes} min`;
+  return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
 });
 
 const queue = ref<{ level: 'Low' | 'Moderate' | 'High'; levelIndex: number; estimateMinutes: number }>({
@@ -325,7 +392,11 @@ const queueChipClass = computed(() => ({
 
 const queueMeterWidth = computed(() => `${(queue.value.levelIndex / 3) * 100}%`);
 
-const special = findMeal(3)!;
+const { orderHistory } = useOrders();
+const latestOrder = computed(() => orderHistory[0] ?? null);
+
+const { meals: menuItems, findMeal } = useMenu();
+const special = computed(() => findMeal(3));
 
 const recommendations = computed(() => {
   if (primaryDiet.value === 'No Preference') return menuItems.slice(0, 4);
@@ -333,11 +404,11 @@ const recommendations = computed(() => {
   return (matches.length ? matches : menuItems).slice(0, 4);
 });
 
-const meals = ref({
-  available: 32,
-  left: 9,
+const meals = computed(() => ({
+  available: menuItems.length,
+  left: menuItems.reduce((sum, meal) => sum + meal.available, 0),
   lowThreshold: 10,
-});
+}));
 
 const nextPickup = ref({
   orderId: '10482',
@@ -391,9 +462,9 @@ function goToOrders() {
 
 .hero {
   padding: calc(20px + env(safe-area-inset-top)) 20px 28px;
-  background: linear-gradient(135deg, #2b2118 0%, #6b3f26 45%, #ff6b35 100%);
+  background: #fdeee1;
   border-radius: 0 0 28px 28px;
-  color: #fff;
+  color: #2b2118;
 }
 
 .hero-top {
@@ -406,7 +477,7 @@ function goToOrders() {
 .hero-eyebrow {
   margin: 0 0 4px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(43, 33, 24, 0.6);
 }
 
 .hero-greeting {
@@ -433,8 +504,8 @@ function goToOrders() {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(43, 33, 24, 0.07);
+  color: #2b2118;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -449,13 +520,13 @@ function goToOrders() {
   height: 8px;
   border-radius: 50%;
   background: #ff3b30;
-  border: 2px solid #6b3f26;
+  border: 2px solid #fdeee1;
 }
 
 .hero-avatar {
   width: 42px;
   height: 42px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  border: 2px solid rgba(43, 33, 24, 0.15);
 }
 
 .status-chips {
@@ -471,13 +542,14 @@ function goToOrders() {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .chip ion-icon {
   font-size: 18px;
+  color: rgba(43, 33, 24, 0.7);
 }
 
 .chip-text {
@@ -492,23 +564,39 @@ function goToOrders() {
 }
 
 .chip-text span {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(43, 33, 24, 0.6);
 }
 
 .chip-warn {
-  background: rgba(255, 159, 28, 0.28);
+  background: rgba(255, 159, 28, 0.16);
+}
+
+.chip-warn ion-icon {
+  color: #ff9f1c;
 }
 
 .chip-low {
-  background: rgba(46, 196, 182, 0.3);
+  background: rgba(46, 196, 182, 0.16);
+}
+
+.chip-low ion-icon {
+  color: #2ec4b6;
 }
 
 .chip-moderate {
-  background: rgba(255, 159, 28, 0.3);
+  background: rgba(255, 159, 28, 0.16);
+}
+
+.chip-moderate ion-icon {
+  color: #ff9f1c;
 }
 
 .chip-high {
-  background: rgba(255, 59, 48, 0.32);
+  background: rgba(255, 59, 48, 0.16);
+}
+
+.chip-high ion-icon {
+  color: #ff3b30;
 }
 
 .special-card {
@@ -655,12 +743,59 @@ ion-card.panel-card {
   }
 }
 
-.queue-meter {
+.queue-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-top: 16px;
 }
 
+.queue-level-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.queue-level-badge ion-icon {
+  font-size: 14px;
+}
+
+.queue-level-badge.chip-low {
+  background: rgba(46, 196, 182, 0.14);
+  color: #229c92;
+}
+
+.queue-level-badge.chip-moderate {
+  background: rgba(255, 159, 28, 0.16);
+  color: #c47712;
+}
+
+.queue-level-badge.chip-high {
+  background: rgba(255, 59, 48, 0.14);
+  color: #d63127;
+}
+
+.queue-wait {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+}
+
+.queue-wait ion-icon {
+  font-size: 14px;
+}
+
 .queue-meter-track {
-  height: 10px;
+  margin-top: 10px;
+  height: 6px;
   border-radius: 999px;
   background: var(--ion-color-step-150, #e8e8e8);
   overflow: hidden;
@@ -685,37 +820,36 @@ ion-card.panel-card {
   background: #ff3b30;
 }
 
-.queue-meter-labels {
+.queue-pickup-row {
   display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--ion-color-medium);
-}
-
-.queue-stats {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.queue-stats > div {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  border-radius: 14px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: var(--ion-color-step-50, #f4f5f8);
+  font-size: 13px;
 }
 
-.queue-stats strong {
-  font-size: 18px;
+.queue-pickup-row ion-icon {
+  font-size: 16px;
+  color: #ff6b35;
+  flex-shrink: 0;
 }
 
-.queue-stats span {
-  font-size: 12px;
-  color: var(--ion-color-medium);
-  margin-top: 2px;
+.queue-pickup-slot {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-pickup-eta {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #ff6b35;
 }
 
 .section-block {

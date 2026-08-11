@@ -2,13 +2,12 @@
   <ion-page>
     <ion-content :fullscreen="true" class="rewards-content">
       <div class="hero">
-        <div class="hero-top">
-          <div>
-            <p class="hero-eyebrow">{{ t('dashboard.tierMember', { tier }) }}</p>
-            <h1 class="hero-points">{{ points }} <span>{{ $t('rewards.pts') }}</span></h1>
-          </div>
-          <ion-icon :icon="trophyOutline" class="hero-trophy" />
+        <div class="hero-tier-badge">
+          <ion-icon :icon="trophyOutline" />
+          <span>{{ t('dashboard.tierMember', { tier }) }}</span>
         </div>
+
+        <h1 class="hero-points">{{ points }}<span> {{ $t('rewards.pts') }}</span></h1>
 
         <div class="tier-progress">
           <div class="tier-progress-track">
@@ -177,63 +176,93 @@ function onRedeem(reward: Reward) {
 }
 
 .hero {
-  padding: calc(20px + env(safe-area-inset-top)) 20px 26px;
-  background: linear-gradient(135deg, #2b1e3d 0%, #6a3fa0 45%, #ff6b35 100%);
+  position: relative;
+  overflow: hidden;
+  padding: calc(20px + env(safe-area-inset-top)) 20px 28px;
+  background: #fdeee1;
   border-radius: 0 0 28px 28px;
-  color: #fff;
+  color: #2b2118;
 }
 
-.hero-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: rgba(43, 33, 24, 0.04);
 }
 
-.hero-eyebrow {
-  margin: 0 0 4px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -90px;
+  left: -50px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(43, 33, 24, 0.03);
+}
+
+.hero-tier-badge {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  color: #ff6b35;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hero-tier-badge ion-icon {
+  font-size: 15px;
 }
 
 .hero-points {
-  margin: 0;
-  font-size: 34px;
+  position: relative;
+  z-index: 1;
+  margin: 18px 0 0;
+  font-size: 40px;
   font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .hero-points span {
   font-size: 16px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.hero-trophy {
-  font-size: 34px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(43, 33, 24, 0.6);
 }
 
 .tier-progress {
+  position: relative;
+  z-index: 1;
   margin-top: 22px;
 }
 
 .tier-progress-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(43, 33, 24, 0.1);
   overflow: hidden;
 }
 
 .tier-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: #fff;
+  background: #ff6b35;
   transition: width 0.3s ease;
 }
 
 .tier-progress-label {
   margin: 8px 0 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(43, 33, 24, 0.65);
 }
 
 .page-body {
@@ -266,6 +295,7 @@ function onRedeem(reward: Reward) {
   border-radius: 20px;
   padding: 16px;
   box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--ion-color-step-100, rgba(0, 0, 0, 0.04));
 }
 
 .reward-card {
@@ -312,6 +342,11 @@ function onRedeem(reward: Reward) {
   color: #fff;
   font-weight: 700;
   font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.redeem-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .redeem-btn:disabled {
@@ -322,13 +357,24 @@ function onRedeem(reward: Reward) {
 .earn-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
 .earn-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ion-color-step-100, #f0f0f0);
+}
+
+.earn-row:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.earn-row:last-child {
+  padding-bottom: 0;
 }
 
 .earn-icon {

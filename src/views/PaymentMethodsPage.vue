@@ -14,10 +14,10 @@
             <ion-icon :icon="walletOutline" />
             <span>{{ $t('payment.campusWallet') }}</span>
           </div>
-          <p class="wallet-balance">{{ formatCurrency(walletBalance) }}</p>
-          <button class="topup-btn" @click="onTopUp">
-            <ion-icon :icon="addCircleOutline" />
-            {{ t('payment.topUp', { amount: formatCurrency(10) }) }}
+          <p class="wallet-balance">{{ formatCurrency(balance) }}</p>
+          <button class="topup-btn" @click="router.push('/wallet')">
+            <ion-icon :icon="walletOutline" />
+            {{ $t('payment.manageWallet') }}
           </button>
         </div>
 
@@ -105,11 +105,14 @@ import {
   informationCircleOutline,
 } from 'ionicons/icons';
 import { usePaymentMethods, type PaymentMethod } from '@/composables/usePaymentMethods';
+import { useWallet } from '@/composables/useWallet';
 import { formatCurrency } from '@/utils/currency';
+import { formatCardNumberInput, formatExpiryInput, isValidCardEntry } from '@/utils/card';
 
 const router = useRouter();
 const { t } = useI18n();
-const { methods, walletBalance, setDefault, removeMethod, addCard, topUpWallet } = usePaymentMethods();
+const { methods, setDefault, removeMethod, addCard } = usePaymentMethods();
+const { balance } = useWallet();
 
 const showToast = ref(false);
 const toastMessage = ref('');
@@ -119,41 +122,36 @@ function notify(message: string) {
   showToast.value = true;
 }
 
-function onSelectDefault(method: PaymentMethod) {
+async function onSelectDefault(method: PaymentMethod) {
   if (method.isDefault) return;
-  setDefault(method.id);
+  await setDefault(method.id);
   notify(t('payment.setAsDefault', { label: method.label }));
 }
 
-function onRemove(method: PaymentMethod) {
-  removeMethod(method.id);
-  notify(t('payment.removed', { label: method.label }));
-}
-
-function onTopUp() {
-  topUpWallet(10);
-  notify(t('payment.addedToWallet', { amount: formatCurrency(10) }));
+async function onRemove(method: PaymentMethod) {
+  try {
+    await removeMethod(method.id);
+    notify(t('payment.removed', { label: method.label }));
+  } catch {
+    notify(t('payment.removeFailed'));
+  }
 }
 
 const showAddForm = ref(false);
 const cardNumber = ref('');
 const cardName = ref('');
 const cardExpiry = ref('');
+const savingCard = ref(false);
 
 function onCardNumberInput() {
-  const digits = cardNumber.value.replace(/\D/g, '').slice(0, 16);
-  cardNumber.value = digits.replace(/(.{4})/g, '$1 ').trim();
+  cardNumber.value = formatCardNumberInput(cardNumber.value);
 }
 
 function onExpiryInput() {
-  const digits = cardExpiry.value.replace(/\D/g, '').slice(0, 4);
-  cardExpiry.value = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+  cardExpiry.value = formatExpiryInput(cardExpiry.value);
 }
 
-const canSaveCard = computed(() => {
-  const digits = cardNumber.value.replace(/\D/g, '');
-  return digits.length >= 12 && cardName.value.trim().length > 0 && /^\d{2}\/\d{2}$/.test(cardExpiry.value);
-});
+const canSaveCard = computed(() => isValidCardEntry(cardNumber.value, cardName.value, cardExpiry.value));
 
 function cancelAddForm() {
   showAddForm.value = false;
@@ -162,11 +160,18 @@ function cancelAddForm() {
   cardExpiry.value = '';
 }
 
-function onSaveCard() {
-  if (!canSaveCard.value) return;
-  addCard(cardNumber.value, cardName.value);
-  notify(t('payment.cardAdded'));
-  cancelAddForm();
+async function onSaveCard() {
+  if (!canSaveCard.value || savingCard.value) return;
+  savingCard.value = true;
+  try {
+    await addCard(cardNumber.value, cardName.value);
+    notify(t('payment.cardAdded'));
+    cancelAddForm();
+  } catch {
+    notify(t('payment.cardAddFailed'));
+  } finally {
+    savingCard.value = false;
+  }
 }
 </script>
 
@@ -217,8 +222,8 @@ function onSaveCard() {
 .wallet-card {
   padding: 20px;
   border-radius: 22px;
-  background: linear-gradient(135deg, #2b2118 0%, #6b3f26 45%, #ff6b35 100%);
-  color: #fff;
+  background: #fdeee1;
+  color: #2b2118;
 }
 
 .wallet-top {
@@ -226,11 +231,12 @@ function onSaveCard() {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(43, 33, 24, 0.65);
 }
 
 .wallet-top ion-icon {
   font-size: 18px;
+  color: #ff6b35;
 }
 
 .wallet-balance {
@@ -246,7 +252,7 @@ function onSaveCard() {
   padding: 9px 16px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: #ff6b35;
   color: #fff;
   font-weight: 600;
   font-size: 13px;
