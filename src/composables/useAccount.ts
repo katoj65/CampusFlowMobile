@@ -1,3 +1,5 @@
+// Personal/student-info fields on `profiles` (name, email, phone, student id,
+// university) — see useProfile for the diet/allergy fields of the same row.
 import { reactive, ref } from 'vue';
 import { supabase } from '@/services/supabase';
 

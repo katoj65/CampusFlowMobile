@@ -1,3 +1,5 @@
+// Session/auth state — sign up, sign in, sign out, and the current Supabase
+// user, hydrated from getSession()/onAuthStateChange at startup.
 import { computed, ref } from 'vue';
 import type { AuthError as SupabaseAuthError, User } from '@supabase/supabase-js';
 import { supabase } from '@/services/supabase';

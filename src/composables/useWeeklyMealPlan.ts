@@ -1,3 +1,6 @@
+// The student's per-day meal picks (`weekly_meal_plan`) plus their
+// preferred order time — Tab1's "Today's Nutrition" card reads this to
+// show today's planned meal.
 import { reactive, ref } from 'vue';
 import { supabase } from '@/services/supabase';
 

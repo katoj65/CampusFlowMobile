@@ -1,3 +1,5 @@
+// The user's cart (`cart_items`), kept live via a Realtime subscription.
+// Cleared server-side by place_order() at checkout — see useOrders.
 import { computed, reactive, ref } from 'vue';
 import { supabase } from '@/services/supabase';
 

@@ -1,3 +1,5 @@
+// Diet/allergy fields on `profiles` — see useAccount for the rest of that
+// same row (name, email, phone, student id, university).
 import { ref } from 'vue';
 import { supabase } from '@/services/supabase';
 

@@ -1,3 +1,5 @@
+// Catalog data (categories, meals, extras) scoped to the student's own
+// university — see fetchMenu()'s doc comment for the RLS rationale.
 import { reactive, ref } from 'vue';
 import {
   fastFoodOutline,

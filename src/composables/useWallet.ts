@@ -1,3 +1,7 @@
+// Wallet balance + transaction history — balance mutations (top up,
+// withdraw, pay) go through Postgres functions (wallet_top_up/_withdraw/
+// _pay) rather than direct table writes, so the balance can't drift out
+// of sync with its transaction log.
 import { reactive, ref } from 'vue';
 import { supabase } from '@/services/supabase';
 import type { Database } from '@/services/database.types';

@@ -1,3 +1,5 @@
+// Pickup locations — still a hardcoded list mirroring the pickup_locations
+// table's seed rows rather than a live fetch (unlike useMenu's categories).
 import { ref } from 'vue';
 
 export interface PickupLocation {

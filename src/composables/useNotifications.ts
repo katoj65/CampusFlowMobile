@@ -1,3 +1,5 @@
+// In-memory mock notifications — not yet backed by the `notifications`
+// table/Realtime, unlike the rest of the app's composables.
 import { computed, reactive } from 'vue';
 
 export type NotificationType = 'order' | 'reward' | 'menu' | 'system';

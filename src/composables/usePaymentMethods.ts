@@ -1,3 +1,5 @@
+// Saved payment methods (`payment_methods`) — wallet/cash rows are seeded
+// per-user by the handle_new_user() signup trigger, cards are user-added.
 import { computed, reactive, ref, watch } from 'vue';
 import { cardOutline, walletOutline, cashOutline } from 'ionicons/icons';
 import { supabase } from '@/services/supabase';

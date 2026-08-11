@@ -1,3 +1,5 @@
+// App locale — thin wrapper around vue-i18n's locale ref, persisted to
+// localStorage under STORAGE_KEY so it survives a reload.
 import { useI18n } from 'vue-i18n';
 import type { SupportedLocale } from '@/i18n';
 
