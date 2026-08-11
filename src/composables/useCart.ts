@@ -20,6 +20,9 @@ const loaded = ref(false);
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
 
+/** Subscribes once per session — place_order() clearing cart_items
+ * server-side at checkout is what this listens for, so `lines` reflects an
+ * emptied cart even though the client never issued that delete itself. */
 function subscribeToCart(userId: string) {
   if (channel) return;
   channel = supabase
@@ -32,16 +35,20 @@ function subscribeToCart(userId: string) {
     .subscribe();
 }
 
+/** Replaces `lines` with the signed-in user's current cart_items rows. */
 async function fetchCart() {
+  // Step 1: no session, nothing to fetch.
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
 
+  // Step 2: oldest-first so items stay in the order they were added.
   const { data } = await supabase
     .from('cart_items')
     .select('*')
     .eq('user_id', userData.user.id)
     .order('created_at', { ascending: true });
 
+  // Step 3: map DB rows (snake_case) onto CartLine (camelCase).
   lines.splice(
     0,
     lines.length,
@@ -62,6 +69,7 @@ async function fetchCart() {
 
 /** Pushes the line immediately (optimistic), then persists — rolled back on failure. */
 async function addToCart(line: Omit<CartLine, 'lineId'>) {
+  // Step 1: show the item in the cart right away under a temp id.
   const tempId = `temp-${Date.now()}`;
   lines.push({ ...line, lineId: tempId });
 
@@ -70,12 +78,14 @@ async function addToCart(line: Omit<CartLine, 'lineId'>) {
     if (i !== -1) lines.splice(i, 1);
   };
 
+  // Step 2: no session — undo the optimistic push, nothing to persist to.
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     rollback();
     throw new Error('Not signed in');
   }
 
+  // Step 3: persist the real row.
   const { data, error } = await supabase
     .from('cart_items')
     .insert({
@@ -97,10 +107,13 @@ async function addToCart(line: Omit<CartLine, 'lineId'>) {
     throw new Error(error?.message ?? 'Could not add item to cart');
   }
 
+  // Step 4: swap the temp id for the real database id now that it exists,
+  // so later removeLine/updateQty calls on this line target the real row.
   const optimistic = lines.find((l) => l.lineId === tempId);
   if (optimistic) optimistic.lineId = String(data.id);
 }
 
+/** Removes one cart line, optimistically, with rollback on failure. */
 async function removeLine(lineId: string) {
   const index = lines.findIndex((line) => line.lineId === lineId);
   if (index === -1) return;
@@ -116,6 +129,7 @@ async function removeLine(lineId: string) {
   }
 }
 
+/** Updates one line's quantity (clamped 1-10), optimistically, with rollback on failure. */
 async function updateQty(lineId: string, qty: number) {
   const line = lines.find((l) => l.lineId === lineId);
   if (!line) return;
@@ -137,6 +151,10 @@ async function updateQty(lineId: string, qty: number) {
   }
 }
 
+/** Empties the cart. Called client-side after checkout for an immediate UI
+ * update — place_order() has usually already cleared cart_items
+ * server-side by the time this runs, so the delete below is often a no-op,
+ * but this is still what clears the local reactive `lines` array. */
 async function clearCart() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;

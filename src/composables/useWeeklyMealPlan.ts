@@ -14,6 +14,9 @@ const orderTime = ref('10:00');
 const loaded = ref(false);
 const loading = ref(false);
 
+/** Loads the 7-day plan and preferred order time in parallel, then merges
+ * the fetched picks onto the fixed Mon-Sun `days` array (a day with no row
+ * yet just keeps its default mealId: null). */
 async function fetchPlan() {
   loading.value = true;
   try {
@@ -41,11 +44,16 @@ async function savePlan(entries: DayPlan[], time: string): Promise<void> {
   if (!userData.user) throw new Error('Not signed in');
   const userId = userData.user.id;
 
+  // Step 1: split into days with a meal picked (upsert) vs. days cleared
+  // back to "no meal" (delete) — weekly_meal_plan has no row for a day
+  // with nothing planned, so clearing a day means removing its row.
   const toUpsert = entries
     .filter((e): e is DayPlan & { mealId: number } => e.mealId !== null)
     .map((e) => ({ user_id: userId, day_of_week: e.dayOfWeek, meal_id: e.mealId, updated_at: new Date().toISOString() }));
   const toClearDays = entries.filter((e) => e.mealId === null).map((e) => e.dayOfWeek);
 
+  // Step 2: run every write in parallel — upsert, delete, and the order
+  // time update on `profiles` don't depend on each other.
   const tasks = [];
   if (toUpsert.length > 0) {
     tasks.push(supabase.from('weekly_meal_plan').upsert(toUpsert, { onConflict: 'user_id,day_of_week' }));
@@ -64,6 +72,7 @@ async function savePlan(entries: DayPlan[], time: string): Promise<void> {
   const failed = results.find((r) => r.error);
   if (failed?.error) throw new Error(failed.error.message);
 
+  // Step 3: only reflect the change locally after every write succeeded.
   for (const day of days) {
     const entry = entries.find((e) => e.dayOfWeek === day.dayOfWeek);
     day.mealId = entry?.mealId ?? null;

@@ -43,6 +43,8 @@ export const pickupLocations: PickupLocation[] = [
   },
 ];
 
+// Defaults to id 1 (Mensa Ground Floor, Counter 2) — checkout reads this
+// via usePickupLocation() when placing an order.
 const selectedLocationId = ref(1);
 
 function setPickupLocation(id: number) {

@@ -14,12 +14,15 @@ export interface AppNotification {
   actionRoute?: string;
 }
 
+/** Helper for building the seed data below relative to "now". */
 function minutesAgo(minutes: number): Date {
   return new Date(Date.now() - minutes * 60000);
 }
 
 let notificationCounter = 1;
 
+// Seed data — stands in for what a real fetch from `notifications` would
+// return.
 const notifications = reactive<AppNotification[]>([
   {
     id: 'n1',
@@ -77,6 +80,8 @@ const notifications = reactive<AppNotification[]>([
   },
 ]);
 
+/** Prepends a new notification — used for in-app events (e.g. a fresh
+ * order placed) that want an immediate local notification. */
 function addNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
   notifications.unshift({
     ...notification,

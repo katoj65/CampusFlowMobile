@@ -13,6 +13,8 @@ const transactions = reactive<WalletTransaction[]>([]);
 const loaded = ref(false);
 const loading = ref(false);
 
+/** Loads the current balance and the 50 most recent transactions, in
+ * parallel since neither query depends on the other. */
 async function fetchWallet() {
   loading.value = true;
   try {
@@ -37,6 +39,10 @@ async function fetchWallet() {
   }
 }
 
+/** Adds funds via the wallet_top_up() Postgres function, which writes the
+ * new balance and the matching transaction row atomically. Refetches
+ * afterward so `transactions` includes the new row (the RPC only returns
+ * the new balance, not the transaction it created). */
 async function topUp(amount: number, paymentMethodId?: string): Promise<number> {
   const { data, error } = await supabase.rpc('wallet_top_up', {
     p_amount: amount,
@@ -48,6 +54,9 @@ async function topUp(amount: number, paymentMethodId?: string): Promise<number> 
   return data;
 }
 
+/** Withdraws funds via wallet_withdraw() — same atomic balance+transaction
+ * pattern as topUp(); the function itself rejects a withdrawal that would
+ * overdraw the balance. */
 async function withdraw(amount: number, paymentMethodId?: string): Promise<number> {
   const { data, error } = await supabase.rpc('wallet_withdraw', {
     p_amount: amount,
@@ -59,6 +68,10 @@ async function withdraw(amount: number, paymentMethodId?: string): Promise<numbe
   return data;
 }
 
+/** Debits the wallet for a checkout payment via wallet_pay(). Doesn't
+ * refetch transactions afterward (unlike topUp/withdraw) since the caller
+ * is mid-checkout and about to navigate away — just updates the balance
+ * so the Payment Methods screen reflects it if the user comes straight back. */
 async function payWithWallet(amount: number, orderId?: number, note?: string): Promise<number> {
   const { data, error } = await supabase.rpc('wallet_pay', {
     p_amount: amount,

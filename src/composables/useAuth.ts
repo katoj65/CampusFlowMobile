@@ -25,6 +25,8 @@ export class AuthError extends Error {
 const currentUser = ref<User | null>(null);
 const sessionLoaded = ref(false);
 
+// Keeps currentUser in sync with every subsequent auth event (token
+// refresh, sign-in in another tab, sign-out) after the initial init() below.
 supabase.auth.onAuthStateChange((_event, session) => {
   currentUser.value = session?.user ?? null;
 });
@@ -37,6 +39,8 @@ export const authReady = new Promise<void>((resolve) => {
   resolveAuthReady = resolve;
 });
 
+/** Runs once at module load: reads whatever session Capacitor Preferences
+ * has persisted from a previous app launch, then unblocks authReady. */
 async function init() {
   if (sessionLoaded.value) return;
   sessionLoaded.value = true;
@@ -64,11 +68,18 @@ interface RegisterResult {
   signedIn: boolean;
 }
 
+/** Creates the auth.users row via Supabase Auth. The profiles row (and
+ * default wallet/cash payment methods) are created server-side by the
+ * handle_new_user() trigger from the metadata passed in `options.data` —
+ * this function never inserts into `profiles` directly. */
 async function register(payload: RegisterPayload): Promise<RegisterResult> {
+  // Step 1: client-side validation that doesn't need a round trip.
   if (payload.password !== payload.passwordConfirmation) {
     throw new AuthError(new Error('Passwords do not match.'));
   }
 
+  // Step 2: sign up — profile fields ride along as user metadata for the
+  // trigger to pick up.
   const { data, error } = await supabase.auth.signUp({
     email: payload.email,
     password: payload.password,
@@ -84,6 +95,9 @@ async function register(payload: RegisterPayload): Promise<RegisterResult> {
   if (error) throw new AuthError(error);
   if (!data.user) throw new AuthError(new Error('Registration failed. Please try again.'));
 
+  // Step 3: signedIn is false when the project requires email confirmation
+  // — the caller uses this to decide whether to route straight into the
+  // app or to a "check your email" screen.
   return { user: data.user, signedIn: !!data.session };
 }
 
@@ -98,6 +112,8 @@ async function login(payload: LoginPayload): Promise<User> {
   return data.user;
 }
 
+/** Signs out; onAuthStateChange above then clears currentUser once
+ * Supabase fires the resulting SIGNED_OUT event. */
 async function logout() {
   await supabase.auth.signOut();
 }

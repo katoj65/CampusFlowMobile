@@ -32,6 +32,8 @@ const ICONS: Record<string, string> = {
   'ice-cream-outline': iceCreamOutline,
 };
 
+/** Maps a `meals` row (snake_case DB columns) onto the MealItem shape the
+ * UI uses everywhere (camelCase, `image` instead of `image_url`, etc). */
 function mapMeal(row: {
   id: number;
   name: string;
@@ -60,11 +62,13 @@ function mapMeal(row: {
   };
 }
 
-/** Meals are strictly scoped to the student's own university — no
- * cross-university browsing and no fallback to the full catalog. */
+/** Loads categories, meals, and extras. Meals and extras are strictly
+ * scoped to the student's own university — no cross-university browsing
+ * and no fallback to the full catalog if the university lookup fails. */
 async function fetchMenu() {
   loading.value = true;
   try {
+    // Step 1: categories are global/shared across universities.
     const { data: categoryRows } = await supabase.from('categories').select('*').order('id');
     const mappedCategories: Category[] = (categoryRows ?? []).map((row) => ({
       id: row.id,
@@ -73,6 +77,8 @@ async function fetchMenu() {
     }));
     categories.splice(0, categories.length, ...mappedCategories);
 
+    // Step 2: resolve the student's own university before touching
+    // anything university-scoped — meals/extras stay empty without one.
     let universityId: number | null = null;
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) {
@@ -84,6 +90,7 @@ async function fetchMenu() {
       universityId = profile?.university_id ?? null;
     }
 
+    // Step 3: fetch meals and extras for that university in parallel.
     const [mealRows, extraRows] = await Promise.all([
       universityId ? fetchMealsFor(universityId) : Promise.resolve([]),
       universityId ? fetchExtrasFor(universityId) : Promise.resolve([]),
@@ -107,6 +114,8 @@ async function fetchExtrasFor(universityId: number): Promise<PriceOption[]> {
   return (data ?? []).map((row) => ({ id: String(row.id), label: row.label, priceDelta: row.price_delta }));
 }
 
+/** Looks up a meal from the already-fetched `meals` cache — does not hit
+ * the network, so callers should ensure fetchMenu() has run first. */
 function findMeal(id: number): MealItem | undefined {
   return meals.find((meal) => meal.id === id);
 }

@@ -31,6 +31,9 @@ function iconFor(type: PaymentMethodType): string {
   return cardOutline;
 }
 
+/** Loads the signed-in user's payment methods, formatting the wallet
+ * row's `detail` from the live balance rather than trusting whatever the
+ * DB last had stored for it (balance can change independently). */
 async function fetchMethods() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
@@ -56,6 +59,9 @@ async function fetchMethods() {
   loaded.value = true;
 }
 
+/** Flips is_default onto `id` and off the previous default, locally and
+ * in the DB — both writes fire in parallel since neither depends on the
+ * other's result. */
 async function setDefault(id: string) {
   const target = methods.find((m) => m.id === id);
   if (!target || target.isDefault) return;
@@ -72,6 +78,9 @@ async function setDefault(id: string) {
   ]);
 }
 
+/** Deletes a payment method (wallet/cash are removable: false, so this is
+ * really only for cards). If the removed method was the default, the next
+ * remaining method is promoted so there's always a default when one exists. */
 async function removeMethod(id: string) {
   const index = methods.findIndex((m) => m.id === id);
   if (index === -1 || !methods[index].removable) return;
@@ -87,13 +96,18 @@ async function removeMethod(id: string) {
   }
 }
 
+/** Adds a new card payment method. No real card validation/tokenization —
+ * this app has no payment gateway integration yet, so it just stores the
+ * last 4 digits for display. */
 async function addCard(cardNumber: string, cardholderName: string): Promise<PaymentMethod> {
+  // Step 1: derive the display detail from the raw input.
   const digits = cardNumber.replace(/\s+/g, '');
   const last4 = digits.slice(-4) || '0000';
 
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error('Not signed in');
 
+  // Step 2: insert — new cards are never the default and are always removable.
   const { data, error } = await supabase
     .from('payment_methods')
     .insert({
@@ -108,6 +122,7 @@ async function addCard(cardNumber: string, cardholderName: string): Promise<Paym
     .single();
   if (error || !data) throw new Error(error?.message ?? 'Could not save card');
 
+  // Step 3: append to local state so the caller sees it immediately.
   const method: PaymentMethod = {
     id: String(data.id),
     type: data.type,
@@ -121,6 +136,8 @@ async function addCard(cardNumber: string, cardholderName: string): Promise<Paym
   return method;
 }
 
+// Keeps the wallet row's displayed balance in sync whenever useWallet's
+// balance changes (top-up, withdrawal, or a wallet_pay at checkout).
 watch(balance, (bal) => {
   const wallet = methods.find((m) => m.type === 'wallet');
   if (wallet) wallet.detail = `${formatCurrency(bal)} balance`;

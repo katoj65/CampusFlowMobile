@@ -44,6 +44,9 @@ const loaded = ref(false);
 const cancellationWindowMinutes = ref(30);
 let cancellationPolicyLoaded = false;
 
+/** Loads the active cancellation window (minutes) once per session — the
+ * same value canCancelOrder() below uses and the RLS policy on `orders`
+ * enforces server-side, so this is only the client-side mirror of it. */
 async function fetchCancellationPolicy() {
   if (cancellationPolicyLoaded) return;
   cancellationPolicyLoaded = true;
@@ -68,6 +71,8 @@ function canCancelOrder(order: Pick<ActiveOrder, 'status' | 'placedAtIso'>): boo
 
 let channel: ReturnType<typeof supabase.channel> | null = null;
 
+/** pickupLocations is still a hardcoded list (see usePickupLocation), so
+ * this is a plain local lookup rather than a query. */
 function locationLabel(id: number | null): string {
   return pickupLocations.find((l) => l.id === id)?.name ?? '';
 }
@@ -86,6 +91,8 @@ function formatOrderDate(iso: string): string {
   });
 }
 
+/** Fetches one order's line items — shared by fetchOrders(), placeOrder(),
+ * and fetchOrderById() rather than duplicated in each. */
 async function loadItemsFor(orderId: number): Promise<OrderItem[]> {
   const { data } = await supabase
     .from('order_items')
@@ -99,10 +106,17 @@ async function loadItemsFor(orderId: number): Promise<OrderItem[]> {
   }));
 }
 
+/** Refetches every order for the signed-in user and repopulates both
+ * activeOrder (the single non-terminal one, if any) and orderHistory (all
+ * of them, newest first) — this is what the Realtime subscription below
+ * calls on every insert/update to `orders`. */
 async function fetchOrders() {
+  // Step 1: no session, nothing to fetch.
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
 
+  // Step 2: newest first — orderHistory reads top-to-bottom as "most
+  // recent order first" and this same array supplies activeOrder too.
   const { data: rows } = await supabase
     .from('orders')
     .select('*')
@@ -110,6 +124,8 @@ async function fetchOrders() {
     .order('placed_at', { ascending: false });
   if (!rows) return;
 
+  // Step 3: at most one order should ever be in a non-terminal status —
+  // that's the one shown as "your active order" on the dashboard/orders tab.
   const active = rows.find((r) => r.status === 'placed' || r.status === 'preparing' || r.status === 'ready');
   if (active) {
     activeOrder.value = {
@@ -128,6 +144,8 @@ async function fetchOrders() {
     activeOrder.value = null;
   }
 
+  // Step 4: every order (including the active one, if any) goes into
+  // history too — Tab3's "past orders" list shows the full record.
   const historyEntries: PastOrder[] = [];
   for (const row of rows) {
     historyEntries.push({
@@ -145,6 +163,9 @@ async function fetchOrders() {
   loaded.value = true;
 }
 
+/** Subscribes once per session — this is how a status change made in the
+ * Supabase dashboard (there's no staff/kitchen app yet) reaches the client
+ * live instead of requiring a manual refresh. */
 function subscribeToOrders(userId: string) {
   if (channel) return;
   channel = supabase
@@ -227,18 +248,28 @@ async function fetchOrderById(id: number): Promise<ActiveOrder | null> {
   };
 }
 
+/** Cancels an order by id. The RLS UPDATE policy on `orders` is the real
+ * enforcement (status must be placed/preparing and within the
+ * cancellation window) — this just issues the update and refetches;
+ * canCancelOrder() above is only the client-side mirror of that policy so
+ * the button doesn't stay visible past the point it would actually work. */
 async function cancelOrder(id: number) {
   const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', id);
   if (error) throw new Error(error.message);
   await fetchOrders();
 }
 
+/** Convenience wrapper for the common case of cancelling whichever order
+ * is currently active. */
 async function cancelActiveOrder() {
   if (!activeOrder.value) return;
   await cancelOrder(activeOrder.value.id);
 }
 
 export function useOrders() {
+  // First call in the session: load orders once, then subscribe to live
+  // updates. Every module state here is shared (module-level singleton),
+  // so later calls just return it without refetching.
   if (!loaded.value) {
     fetchOrders().then(async () => {
       const { data: userData } = await supabase.auth.getUser();

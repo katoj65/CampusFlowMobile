@@ -27,6 +27,7 @@ async function fetchProfile() {
   loaded.value = true;
 }
 
+/** Persists a single-select diet choice and updates local state to match. */
 async function setPrimaryDiet(diet: string) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
@@ -40,6 +41,8 @@ async function setPrimaryDiet(diet: string) {
   primaryDiet.value = diet;
 }
 
+/** Adds/removes one allergy from the multi-select list and persists the
+ * resulting array in one write. */
 async function toggleAllergy(allergy: string) {
   const next = allergies.value.includes(allergy)
     ? allergies.value.filter((a) => a !== allergy)
