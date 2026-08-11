@@ -1,6 +1,8 @@
+// Active order + order history, kept live via a Realtime subscription on
+// `orders`. Checkout itself is the place_order() Postgres function — see
+// its doc comment on placeOrder() below.
 import { reactive, ref } from 'vue';
 import { supabase } from '@/services/supabase';
-import type { CartLine } from './useCart';
 import { pickupLocations, usePickupLocation } from './usePickupLocation';
 
 export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
@@ -84,12 +86,6 @@ function formatOrderDate(iso: string): string {
   });
 }
 
-function generateCode(): string {
-  const a = Math.floor(100 + Math.random() * 900);
-  const b = Math.floor(10 + Math.random() * 90);
-  return `${a}-${b}`;
-}
-
 async function loadItemsFor(orderId: number): Promise<OrderItem[]> {
   const { data } = await supabase
     .from('order_items')
@@ -161,40 +157,21 @@ function subscribeToOrders(userId: string) {
     .subscribe();
 }
 
-async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMethod: string): Promise<ActiveOrder> {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error('Not signed in');
-
+/** Checkout runs entirely inside the place_order() Postgres function —
+ * total, order, and order_items all come from the user's cart_items rows
+ * server-side in one transaction (and cart_items gets cleared there too),
+ * rather than the client computing the total and making two separate
+ * inserts that could leave a dangling empty order if the second failed. */
+async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<ActiveOrder> {
   const { selectedLocationId } = usePickupLocation();
-  const total = cartLines.reduce((sum, line) => sum + line.unitPrice * line.qty + line.extrasTotal, 0);
-  const code = generateCode();
+  if (!selectedLocationId.value) throw new Error('No pickup location selected');
 
-  const { data: order, error } = await supabase
-    .from('orders')
-    .insert({
-      user_id: userData.user.id,
-      pickup_location_id: selectedLocationId.value,
-      pickup_slot: pickupSlot,
-      code,
-      total,
-      payment_method: paymentMethod,
-    })
-    .select()
-    .single();
+  const { data: order, error } = await supabase.rpc('place_order', {
+    p_pickup_location_id: selectedLocationId.value,
+    p_pickup_slot: pickupSlot,
+    p_payment_method: paymentMethod,
+  });
   if (error || !order) throw new Error(error?.message ?? 'Could not place order');
-
-  const itemRows = cartLines.map((line) => ({
-    order_id: order.id,
-    meal_id: line.mealId,
-    name: line.summary ? `${line.name} (${line.summary})` : line.name,
-    qty: line.qty,
-    unit_price: line.unitPrice,
-    summary: line.summary,
-    extras: line.extras,
-    extras_total_price: line.extrasTotal,
-  }));
-  const { error: itemsError } = await supabase.from('order_items').insert(itemRows);
-  if (itemsError) throw new Error(itemsError.message);
 
   const newActive: ActiveOrder = {
     id: order.id,
@@ -203,12 +180,7 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
     pickupSlot: order.pickup_slot,
     location: locationLabel(order.pickup_location_id),
     status: order.status,
-    items: itemRows.map((row) => ({
-      name: row.name,
-      qty: row.qty,
-      unitPrice: row.unit_price,
-      extrasTotal: row.extras_total_price,
-    })),
+    items: await loadItemsFor(order.id),
     total: order.total,
     paymentMethod: order.payment_method,
     code: order.code,

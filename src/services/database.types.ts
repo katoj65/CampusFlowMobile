@@ -270,6 +270,20 @@ export interface Database {
       wallet_top_up: { Args: { p_amount: number; p_payment_method_id?: number | null }; Returns: number };
       wallet_withdraw: { Args: { p_amount: number; p_payment_method_id?: number | null }; Returns: number };
       wallet_pay: { Args: { p_amount: number; p_order_id?: number | null; p_note?: string | null }; Returns: number };
+      place_order: {
+        Args: { p_pickup_location_id: number; p_pickup_slot: string; p_payment_method: string };
+        Returns: {
+          id: number;
+          user_id: string;
+          status: 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
+          pickup_location_id: number | null;
+          pickup_slot: string;
+          code: string;
+          total: number;
+          placed_at: string;
+          payment_method: string;
+        };
+      };
     };
   };
 }

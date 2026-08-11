@@ -200,7 +200,7 @@ async function onPlaceOrder() {
       : method.type === 'wallet'
         ? method.label
         : `${method.label} (${method.detail})`;
-    await orders.placeOrder([...cart.lines], selectedSlot.value, paymentLabel);
+    await orders.placeOrder(selectedSlot.value, paymentLabel);
     await cart.clearCart();
     router.replace('/order-confirmation');
   } catch {
