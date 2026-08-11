@@ -203,7 +203,9 @@ async function onPlaceOrder() {
     await orders.placeOrder(selectedSlot.value, paymentLabel);
     await cart.clearCart();
     router.replace('/order-confirmation');
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('placeOrder failed:', err);
     submitting.value = false;
     notify(t('checkout.paymentFailed'));
   }
