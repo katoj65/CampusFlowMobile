@@ -78,7 +78,7 @@
             <h2>{{ $t('item.addExtras') }}</h2>
             <div class="option-row">
               <button
-                v-for="extra in commonExtras"
+                v-for="extra in extras"
                 :key="extra.id"
                 class="option-chip"
                 :class="{ active: selectedExtras.has(extra.id) }"
@@ -157,7 +157,7 @@ import {
   addOutline,
   fastFoodOutline,
 } from 'ionicons/icons';
-import { sizeOptions, spiceLevels, commonExtras, CATEGORY_MAINS, CATEGORY_GRILL } from '@/data/menu';
+import { sizeOptions, spiceLevels, CATEGORY_MAINS, CATEGORY_GRILL } from '@/data/menu';
 import { useMenu } from '@/composables/useMenu';
 import { useCart } from '@/composables/useCart';
 import { formatCurrency } from '@/utils/currency';
@@ -167,7 +167,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const cart = useCart();
-const { findMeal, loading: menuLoading } = useMenu();
+const { findMeal, extras, loading: menuLoading } = useMenu();
 
 const meal = computed(() => findMeal(Number(route.params.id)));
 
@@ -204,7 +204,7 @@ const unitPrice = computed(() => {
     const size = sizeOptions.find((o) => o.id === selectedSize.value);
     price += size?.priceDelta ?? 0;
     for (const extraId of selectedExtras.value) {
-      const extra = commonExtras.find((e) => e.id === extraId);
+      const extra = extras.find((e) => e.id === extraId);
       price += extra?.priceDelta ?? 0;
     }
   }
@@ -220,7 +220,7 @@ const customizationSummary = computed(() => {
   if (size && size.priceDelta > 0) parts.push(size.label);
   if (showSpiceLevel.value) parts.push(t('item.spiceSuffix', { level: selectedSpice.value }));
   for (const extraId of selectedExtras.value) {
-    const extra = commonExtras.find((e) => e.id === extraId);
+    const extra = extras.find((e) => e.id === extraId);
     if (extra) parts.push(extra.label);
   }
   if (meal.value) {

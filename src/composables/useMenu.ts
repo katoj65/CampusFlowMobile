@@ -9,10 +9,11 @@ import {
   iceCreamOutline,
 } from 'ionicons/icons';
 import { supabase } from '@/services/supabase';
-import type { MealItem, Category } from '@/data/menu';
+import type { MealItem, Category, PriceOption } from '@/data/menu';
 
 const meals = reactive<MealItem[]>([]);
 const categories = reactive<Category[]>([]);
+const extras = reactive<PriceOption[]>([]);
 const loaded = ref(false);
 const loading = ref(false);
 
@@ -70,6 +71,14 @@ async function fetchMenu() {
     }));
     categories.splice(0, categories.length, ...mappedCategories);
 
+    const { data: extraRows } = await supabase.from('meal_extras').select('*').order('id');
+    const mappedExtras: PriceOption[] = (extraRows ?? []).map((row) => ({
+      id: String(row.id),
+      label: row.label,
+      priceDelta: row.price_delta,
+    }));
+    extras.splice(0, extras.length, ...mappedExtras);
+
     let universityId: number | null = null;
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) {
@@ -101,5 +110,5 @@ function findMeal(id: number): MealItem | undefined {
 
 export function useMenu() {
   if (!loaded.value) fetchMenu();
-  return { meals, categories, loading, findMeal, fetchMenu };
+  return { meals, categories, extras, loading, findMeal, fetchMenu };
 }

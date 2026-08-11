@@ -63,12 +63,6 @@ export const sizeOptions: PriceOption[] = [
 
 export const spiceLevels = ['Mild', 'Medium', 'Hot'];
 
-export const commonExtras: PriceOption[] = [
-  { id: 'extra-sauce', label: 'Extra Sauce', priceDelta: 0.5 },
-  { id: 'extra-cheese', label: 'Extra Cheese', priceDelta: 0.7 },
-  { id: 'side-bread', label: 'Side of Bread', priceDelta: 0.9 },
-];
-
 export const meals: MealItem[] = [
   {
     id: 1,

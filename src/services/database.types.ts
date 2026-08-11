@@ -92,6 +92,12 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      meal_extras: {
+        Row: { id: number; label: string; price_delta: number };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: number;
