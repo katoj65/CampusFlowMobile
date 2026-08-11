@@ -84,13 +84,17 @@
         <p class="app-version">CampusFlow v0.0.1</p>
       </div>
 
-      <ion-alert
+      <ConfirmDialog
         :is-open="showLogoutAlert"
-        :header="t('profile.logoutConfirmHeader')"
+        :icon="logOutOutline"
+        :title="t('profile.logoutConfirmHeader')"
         :message="t('profile.logoutConfirmMessage')"
-        :buttons="logoutAlertButtons"
-        @didDismiss="showLogoutAlert = false"
-      ></ion-alert>
+        :confirm-text="t('profile.logOut')"
+        :cancel-text="t('profile.cancel')"
+        destructive
+        @cancel="showLogoutAlert = false"
+        @confirm="onConfirmLogout"
+      />
 
       <ion-toast
         :is-open="showToast"
@@ -107,7 +111,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonAvatar, IonAlert, IonToast } from '@ionic/vue';
+import { IonPage, IonContent, IonIcon, IonAvatar, IonToast } from '@ionic/vue';
 import {
   createOutline,
   leafOutline,
@@ -126,6 +130,7 @@ import {
 import { useProfile } from '@/composables/useProfile';
 import { useAccount } from '@/composables/useAccount';
 import { useAuth } from '@/composables/useAuth';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -180,17 +185,11 @@ function onComingSoon(label: string) {
 
 const showLogoutAlert = ref(false);
 
-const logoutAlertButtons = computed(() => [
-  { text: t('profile.cancel'), role: 'cancel' },
-  {
-    text: t('profile.logOut'),
-    role: 'destructive',
-    handler: async () => {
-      await auth.logout();
-      router.replace('/login');
-    },
-  },
-]);
+async function onConfirmLogout() {
+  showLogoutAlert.value = false;
+  await auth.logout();
+  router.replace('/login');
+}
 </script>
 
 <style scoped>

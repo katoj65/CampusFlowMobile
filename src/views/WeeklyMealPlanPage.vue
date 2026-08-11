@@ -11,13 +11,35 @@
       <div class="page-body">
         <p class="intro">{{ $t('weeklyPlan.intro') }}</p>
 
+        <div class="summary-card">
+          <div class="summary-top">
+            <strong>{{ t('weeklyPlan.daysPlanned', { count: plannedCount }) }}</strong>
+            <ion-icon :icon="calendarOutline" />
+          </div>
+          <div class="summary-track">
+            <div class="summary-fill" :style="{ width: (plannedCount / 7) * 100 + '%' }"></div>
+          </div>
+        </div>
+
         <section class="detail-section">
           <h2>
             <ion-icon :icon="timeOutline" />
             {{ $t('weeklyPlan.orderTime') }}
           </h2>
           <p class="section-hint">{{ $t('weeklyPlan.orderTimeHint') }}</p>
-          <input v-model="draftTime" type="time" class="time-input" />
+          <button class="time-trigger" id="order-time-trigger">
+            <ion-icon :icon="alarmOutline" class="time-trigger-icon" />
+            <span>{{ formattedOrderTime }}</span>
+            <ion-icon :icon="chevronForwardOutline" class="row-chevron" />
+          </button>
+          <ion-popover trigger="order-time-trigger" trigger-action="click" class="time-popover">
+            <ion-datetime
+              presentation="time"
+              :value="draftTimeIso"
+              minute-values="0,5,10,15,20,25,30,35,40,45,50,55"
+              @ionChange="onTimeChange"
+            ></ion-datetime>
+          </ion-popover>
         </section>
 
         <section class="detail-section">
@@ -25,13 +47,27 @@
             <ion-icon :icon="calendarOutline" />
             {{ $t('weeklyPlan.days') }}
           </h2>
-          <div class="panel-card day-list">
+          <div class="day-list">
             <div class="day-row" v-for="day in draftDays" :key="day.dayOfWeek">
-              <span class="day-label">{{ $t(`weeklyPlan.day.${dayKey(day.dayOfWeek)}`) }}</span>
-              <select class="meal-select" v-model="day.mealId">
-                <option :value="null">{{ $t('weeklyPlan.noMeal') }}</option>
-                <option v-for="meal in meals" :key="meal.id" :value="meal.id">{{ meal.name }}</option>
-              </select>
+              <div class="day-badge" :class="{ filled: day.mealId }">{{ dayInitial(day.dayOfWeek) }}</div>
+              <div class="day-info">
+                <span class="day-name">{{ $t(`weeklyPlan.day.${dayKey(day.dayOfWeek)}`) }}</span>
+                <span class="day-meal" :class="{ empty: !day.mealId }">
+                  {{ day.mealId ? mealName(day.mealId) : $t('weeklyPlan.tapToChoose') }}
+                </span>
+              </div>
+              <ion-icon :icon="chevronForwardOutline" class="row-chevron" />
+              <ion-select
+                class="meal-select-overlay"
+                :value="day.mealId"
+                :aria-label="$t(`weeklyPlan.day.${dayKey(day.dayOfWeek)}`)"
+                @ionChange="day.mealId = $event.detail.value"
+              >
+                <ion-select-option :value="null">{{ $t('weeklyPlan.noMeal') }}</ion-select-option>
+                <ion-select-option v-for="meal in meals" :key="meal.id" :value="meal.id">
+                  {{ meal.name }} — {{ formatCurrency(meal.price) }}
+                </ion-select-option>
+              </ion-select>
             </div>
           </div>
         </section>
@@ -59,18 +95,27 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonToast, IonSpinner } from '@ionic/vue';
-import { chevronBackOutline, timeOutline, calendarOutline } from 'ionicons/icons';
+import { IonPage, IonContent, IonIcon, IonToast, IonSpinner, IonSelect, IonSelectOption, IonPopover, IonDatetime } from '@ionic/vue';
+import { chevronBackOutline, timeOutline, calendarOutline, alarmOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useWeeklyMealPlan, type DayPlan } from '@/composables/useWeeklyMealPlan';
-import { meals } from '@/data/menu';
+import { useMenu } from '@/composables/useMenu';
+import { formatCurrency } from '@/utils/currency';
 
 const router = useRouter();
 const { t } = useI18n();
 const { days, orderTime, loaded, savePlan } = useWeeklyMealPlan();
+const { meals, findMeal } = useMenu();
 
 const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const dayInitials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 function dayKey(dayOfWeek: number): string {
   return dayKeys[dayOfWeek - 1] ?? 'monday';
+}
+function dayInitial(dayOfWeek: number): string {
+  return dayInitials[dayOfWeek - 1] ?? 'M';
+}
+function mealName(mealId: number): string {
+  return findMeal(mealId)?.name ?? '';
 }
 
 const draftDays = reactive<DayPlan[]>(days.map((d) => ({ ...d })));
@@ -88,6 +133,24 @@ watch(loaded, (isLoaded) => {
   if (isLoaded) syncDraftFromSource();
 });
 if (loaded.value) syncDraftFromSource();
+
+const plannedCount = computed(() => draftDays.filter((d) => d.mealId !== null).length);
+
+function formatTimeOfDay(value: string): string {
+  const [hours, minutes] = value.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+const formattedOrderTime = computed(() => formatTimeOfDay(draftTime.value));
+const draftTimeIso = computed(() => `2000-01-01T${draftTime.value}:00`);
+
+function onTimeChange(event: CustomEvent) {
+  const value = event.detail.value as string | null;
+  if (!value) return;
+  draftTime.value = value.slice(11, 16);
+}
 
 const isDirty = computed(() => {
   if (draftTime.value !== orderTime.value) return true;
@@ -161,7 +224,7 @@ async function onSave() {
   padding: 4px 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
 }
 
 .intro {
@@ -169,6 +232,43 @@ async function onSave() {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ion-color-medium);
+}
+
+.summary-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: #fdeee1;
+}
+
+.summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-top strong {
+  font-size: 14px;
+  color: #2b2118;
+}
+
+.summary-top ion-icon {
+  font-size: 18px;
+  color: #ff6b35;
+}
+
+.summary-track {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(43, 33, 24, 0.1);
+  overflow: hidden;
+}
+
+.summary-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #ff6b35;
+  transition: width 0.3s ease;
 }
 
 .detail-section h2 {
@@ -186,39 +286,52 @@ async function onSave() {
   color: var(--ion-color-medium);
 }
 
-.time-input {
+.time-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 13px 14px;
   border-radius: 14px;
-  border: 1.5px solid var(--ion-color-step-100, #eee);
+  border: none;
   background: var(--ion-card-background, #fff);
   color: var(--ion-text-color);
   font-size: 15px;
+  font-weight: 600;
   font-family: inherit;
   box-shadow: 0 8px 20px -18px rgba(0, 0, 0, 0.4);
+  text-align: left;
 }
 
-.time-input:focus {
-  outline: none;
-  border-color: #ff6b35;
+.time-trigger-icon {
+  font-size: 18px;
+  color: #ff6b35;
+}
+
+.time-trigger span {
+  flex: 1;
+}
+
+.time-popover::part(content) {
+  border-radius: 18px;
 }
 
 .day-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 6px 14px;
+  padding: 4px 14px;
   border-radius: 18px;
   background: var(--ion-card-background, #fff);
   box-shadow: 0 8px 20px -18px rgba(0, 0, 0, 0.4);
 }
 
 .day-row {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 12px 0;
+  padding: 13px 0;
   border-bottom: 1px solid var(--ion-color-step-100, #eee);
 }
 
@@ -226,23 +339,62 @@ async function onSave() {
   border-bottom: none;
 }
 
-.day-label {
+.day-badge {
   flex-shrink: 0;
-  width: 84px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--ion-color-step-100, #eee);
+  color: var(--ion-color-medium);
+}
+
+.day-badge.filled {
+  background: rgba(255, 107, 53, 0.14);
+  color: #ff6b35;
+}
+
+.day-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-name {
   font-size: 13px;
   font-weight: 700;
 }
 
-.meal-select {
-  flex: 1;
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1.5px solid var(--ion-color-step-100, #eee);
-  background: var(--ion-color-step-50, #f4f5f8);
+.day-meal {
+  font-size: 12px;
   color: var(--ion-text-color);
-  font-size: 13px;
-  font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-meal.empty {
+  color: var(--ion-color-medium);
+}
+
+.row-chevron {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--ion-color-step-300, #ccc);
+}
+
+.meal-select-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .save-footer {

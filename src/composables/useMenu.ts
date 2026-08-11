@@ -1,4 +1,13 @@
 import { reactive, ref } from 'vue';
+import {
+  fastFoodOutline,
+  sunnyOutline,
+  restaurantOutline,
+  leafOutline,
+  flameOutline,
+  cafeOutline,
+  iceCreamOutline,
+} from 'ionicons/icons';
 import { supabase } from '@/services/supabase';
 import type { MealItem, Category } from '@/data/menu';
 
@@ -6,6 +15,19 @@ const meals = reactive<MealItem[]>([]);
 const categories = reactive<Category[]>([]);
 const loaded = ref(false);
 const loading = ref(false);
+
+/** categories.icon in the DB is a plain kebab-case name (e.g. "flame-outline").
+ * ion-icon can't resolve that to a bundled asset on its own — it needs the
+ * actual imported icon reference, same as every other :icon usage in the app. */
+const ICONS: Record<string, string> = {
+  'fast-food-outline': fastFoodOutline,
+  'sunny-outline': sunnyOutline,
+  'restaurant-outline': restaurantOutline,
+  'leaf-outline': leafOutline,
+  'flame-outline': flameOutline,
+  'cafe-outline': cafeOutline,
+  'ice-cream-outline': iceCreamOutline,
+};
 
 function mapMeal(row: {
   id: number;
@@ -41,7 +63,12 @@ async function fetchMenu() {
   loading.value = true;
   try {
     const { data: categoryRows } = await supabase.from('categories').select('*').order('id');
-    categories.splice(0, categories.length, ...(categoryRows ?? []));
+    const mappedCategories: Category[] = (categoryRows ?? []).map((row) => ({
+      id: row.id,
+      label: row.label,
+      icon: ICONS[row.icon] ?? fastFoodOutline,
+    }));
+    categories.splice(0, categories.length, ...mappedCategories);
 
     let universityId: number | null = null;
     const { data: userData } = await supabase.auth.getUser();

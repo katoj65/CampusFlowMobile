@@ -1,6 +1,10 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="orders-content">
+      <ion-refresher slot="fixed" @ionRefresh="onRefresh">
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
+
       <div class="sticky-header">
         <div class="page-header">
           <h1>{{ $t('nav.orders') }}</h1>
@@ -59,6 +63,11 @@
                   <span>{{ activeOrder.paymentMethod }}</span>
                 </div>
               </div>
+
+              <button class="track-link" @click="router.push(`/order-tracking/${activeOrder.id}`)">
+                {{ $t('confirmation.trackOrder') }}
+                <ion-icon :icon="chevronForwardOutline" />
+              </button>
             </div>
 
             <div class="panel-card code-card">
@@ -79,7 +88,11 @@
               </div>
             </div>
 
-            <button class="cancel-btn" @click="showCancelAlert = true">
+            <div v-if="activeOrder.status === 'ready'" class="ready-banner">
+              <ion-icon :icon="checkmarkCircle" />
+              {{ $t('orders.readyBanner') }}
+            </div>
+            <button v-else class="cancel-btn" @click="showCancelAlert = true">
               <ion-icon :icon="closeCircleOutline" />
               {{ $t('orders.cancelOrder') }}
             </button>
@@ -95,60 +108,68 @@
 
         <template v-else>
           <div v-if="orderHistory.length" class="history-list">
-            <div class="history-card" v-for="order in orderHistory" :key="order.id">
-              <div class="history-card-body">
-                <div class="history-top">
-                  <div class="history-id-badge">
-                    <ion-icon :icon="bagHandleOutline" />
+            <section class="history-group" v-for="group in groupedHistory" :key="group.label">
+              <p class="group-label">{{ group.label }}</p>
+              <div class="history-card" v-for="order in group.items" :key="order.id">
+                <div class="history-card-body">
+                  <div class="history-top">
+                    <div class="history-id-badge">
+                      <ion-icon :icon="bagHandleOutline" />
+                    </div>
+                    <div class="history-heading">
+                      <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
+                      <p class="panel-sub">{{ order.date }}</p>
+                    </div>
+                    <span class="status-badge" :class="`status-${order.status}`">
+                      {{ statusLabel(order.status) }}
+                    </span>
                   </div>
-                  <div class="history-heading">
-                    <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
-                    <p class="panel-sub">{{ order.date }}</p>
-                  </div>
-                  <span class="status-badge" :class="`status-${order.status}`">
-                    {{ statusLabel(order.status) }}
-                  </span>
-                </div>
 
-                <div class="history-items-list">
-                  <div class="history-item-row" v-for="item in order.items" :key="item.name">
-                    <span class="history-item-qty">{{ item.qty }}×</span>
-                    <span class="history-item-name">{{ item.name }}</span>
-                    <span class="history-item-price">{{ formatCurrency(item.price * item.qty) }}</span>
+                  <div class="history-items-list">
+                    <div class="history-item-row" v-for="item in order.items" :key="item.name">
+                      <span class="history-item-qty">{{ item.qty }}×</span>
+                      <span class="history-item-name">{{ item.name }}</span>
+                      <span class="history-item-price">{{ formatCurrency(item.price * item.qty) }}</span>
+                    </div>
                   </div>
-                </div>
 
-                <div class="history-footer">
-                  <div class="history-payment">
-                    <ion-icon :icon="cardOutline" />
-                    <span>{{ order.paymentMethod }}</span>
+                  <div class="history-footer">
+                    <div class="history-payment">
+                      <ion-icon :icon="cardOutline" />
+                      <span>{{ order.paymentMethod }}</span>
+                    </div>
+                    <span class="history-total">{{ formatCurrency(order.total) }}</span>
                   </div>
-                  <span class="history-total">{{ formatCurrency(order.total) }}</span>
-                </div>
 
-                <button class="reorder-btn" @click="onReorder(order)">
-                  <ion-icon :icon="refreshOutline" />
-                  {{ $t('orders.reorder') }}
-                </button>
+                  <button class="reorder-btn" @click="onReorder(order)">
+                    <ion-icon :icon="refreshOutline" />
+                    {{ $t('orders.reorder') }}
+                  </button>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
 
           <div v-else class="empty-state">
             <ion-icon :icon="receiptOutline" />
             <h3>{{ $t('orders.noPastOrders') }}</h3>
             <p>{{ $t('orders.historyHint') }}</p>
+            <button class="primary-btn" @click="goToMenu">{{ $t('orders.browseMenu') }}</button>
           </div>
         </template>
       </div>
 
-      <ion-alert
+      <ConfirmDialog
         :is-open="showCancelAlert"
-        :header="t('orders.cancelConfirmHeader')"
+        :icon="closeCircleOutline"
+        :title="t('orders.cancelConfirmHeader')"
         :message="t('orders.cancelConfirmMessage')"
-        :buttons="cancelAlertButtons"
-        @didDismiss="showCancelAlert = false"
-      ></ion-alert>
+        :confirm-text="t('orders.cancelOrder')"
+        :cancel-text="t('orders.keepOrder')"
+        destructive
+        @cancel="showCancelAlert = false"
+        @confirm="onConfirmCancelOrder"
+      />
 
       <ion-toast
         :is-open="showToast"
@@ -165,7 +186,17 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { IonPage, IonContent, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonAlert, IonToast } from '@ionic/vue';
+import {
+  IonPage,
+  IonContent,
+  IonIcon,
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
+  IonToast,
+  IonRefresher,
+  IonRefresherContent,
+} from '@ionic/vue';
 import {
   timeOutline,
   locationOutline,
@@ -177,15 +208,17 @@ import {
   receiptOutline,
   refreshOutline,
   bagHandleOutline,
+  chevronForwardOutline,
 } from 'ionicons/icons';
 import { useOrders, type OrderStatus, type PastOrder } from '@/composables/useOrders';
 import { useCart } from '@/composables/useCart';
 import { useMenu } from '@/composables/useMenu';
 import { formatCurrency } from '@/utils/currency';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 
 const router = useRouter();
 const { t } = useI18n();
-const { activeOrder, orderHistory, cancelActiveOrder } = useOrders();
+const { activeOrder, orderHistory, cancelActiveOrder, fetchOrders } = useOrders();
 const cart = useCart();
 const { meals: menuItems } = useMenu();
 
@@ -195,6 +228,27 @@ const activeLabel = computed(() => (activeOrder.value ? t('orders.activeWithCoun
 const historyLabel = computed(() =>
   orderHistory.length ? t('orders.historyWithCount', { count: orderHistory.length }) : t('orders.history')
 );
+
+function isToday(iso: string): boolean {
+  return new Date(iso).toDateString() === new Date().toDateString();
+}
+
+const groupedHistory = computed(() => {
+  const today: PastOrder[] = [];
+  const earlier: PastOrder[] = [];
+  for (const order of orderHistory) {
+    (isToday(order.placedAt) ? today : earlier).push(order);
+  }
+  const groups: { label: string; items: PastOrder[] }[] = [];
+  if (today.length) groups.push({ label: t('orders.today'), items: today });
+  if (earlier.length) groups.push({ label: t('orders.earlier'), items: earlier });
+  return groups;
+});
+
+async function onRefresh(event: CustomEvent) {
+  await fetchOrders();
+  (event.target as HTMLIonRefresherElement).complete();
+}
 
 const steps = computed(() => [
   { key: 'placed', label: t('orders.stepPlaced') },
@@ -272,22 +326,16 @@ async function onReorder(order: PastOrder) {
 
 const showCancelAlert = ref(false);
 
-const cancelAlertButtons = computed(() => [
-  { text: t('orders.keepOrder'), role: 'cancel' },
-  {
-    text: t('orders.cancelOrder'),
-    role: 'destructive',
-    handler: async () => {
-      try {
-        await cancelActiveOrder();
-        toastMessage.value = t('orders.orderCancelled');
-      } catch {
-        toastMessage.value = t('orders.cancelFailed');
-      }
-      showToast.value = true;
-    },
-  },
-]);
+async function onConfirmCancelOrder() {
+  showCancelAlert.value = false;
+  try {
+    await cancelActiveOrder();
+    toastMessage.value = t('orders.orderCancelled');
+  } catch {
+    toastMessage.value = t('orders.cancelFailed');
+  }
+  showToast.value = true;
+}
 </script>
 
 <style scoped>
@@ -354,6 +402,21 @@ const cancelAlertButtons = computed(() => [
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.history-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-label {
+  margin: 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ion-color-medium);
 }
 
 .panel-card {
@@ -495,6 +558,31 @@ const cancelAlertButtons = computed(() => [
   color: var(--ion-color-medium);
 }
 
+.track-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 107, 53, 0.08);
+  color: #ff6b35;
+  font-weight: 700;
+  font-size: 13px;
+  transition: transform 0.15s ease;
+}
+
+.track-link ion-icon {
+  font-size: 15px;
+}
+
+.track-link:active {
+  transform: scale(0.97);
+}
+
 .code-card {
   display: flex;
   flex-direction: column;
@@ -560,6 +648,31 @@ const cancelAlertButtons = computed(() => [
   color: #ff3b30;
   font-weight: 700;
   font-size: 14px;
+  transition: transform 0.15s ease;
+}
+
+.cancel-btn:active {
+  transform: scale(0.97);
+}
+
+.ready-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(46, 196, 182, 0.12);
+  color: #229c92;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+}
+
+.ready-banner ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .history-card {
@@ -704,6 +817,11 @@ const cancelAlertButtons = computed(() => [
   color: #fff;
   font-weight: 700;
   font-size: 14px;
+  transition: transform 0.15s ease;
+}
+
+.primary-btn:active {
+  transform: scale(0.97);
 }
 
 .empty-state {

@@ -5,7 +5,7 @@
         <div class="hero-top">
           <div class="hero-greeting-block">
             <p class="hero-eyebrow">{{ formattedDateTime }}</p>
-            <h1 class="hero-greeting">{{ greeting }}, {{ studentName }} <span class="wave">👋</span></h1>
+            <h1 class="hero-greeting">{{ greeting }}, {{ studentName }}</h1>
           </div>
           <div class="hero-actions">
             <button class="icon-btn" :aria-label="t('dashboard.notificationsAria')" @click="router.push('/notifications')">
@@ -133,56 +133,30 @@
           </ion-card>
         </div>
 
-        <ion-card class="panel-card pickup-panel">
-          <div class="panel-header">
-            <div>
-              <h2>{{ $t('dashboard.nextPickupSlot') }}</h2>
-              <p class="panel-sub">{{ t('dashboard.orderNumber', { id: nextPickup.orderId }) }}</p>
-            </div>
-            <span class="pickup-countdown">{{ t('dashboard.inMinutes', { minutes: minutesToPickup }) }}</span>
-          </div>
-          <div class="pickup-body">
-            <div class="pickup-time">
-              <ion-icon :icon="walkOutline" />
-              <span>{{ nextPickup.slotStart }} – {{ nextPickup.slotEnd }}</span>
-            </div>
-            <div class="pickup-location">
-              <ion-icon :icon="locationOutline" />
-              <span>{{ nextPickup.location }}</span>
-            </div>
-          </div>
-          <button class="primary-btn" @click="goToOrders">
-            {{ $t('dashboard.viewOrder') }} <ion-icon :icon="chevronForwardOutline" />
-          </button>
-        </ion-card>
-
         <ion-card class="panel-card nutrition-panel">
           <div class="panel-header">
             <div>
               <h2>{{ $t('dashboard.todaysNutrition') }}</h2>
-              <p class="panel-sub">{{ $t('dashboard.basedOnLoggedMeals') }}</p>
+              <p class="panel-sub">{{ $t('dashboard.fromWeeklyPlan') }}</p>
             </div>
             <ion-icon :icon="pieChartOutline" />
           </div>
-          <div class="nutrition-calories">
-            <strong>{{ nutrition.calories.consumed }}</strong>
-            <span>{{ t('dashboard.kcalGoal', { goal: nutrition.calories.goal }) }}</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" :style="{ width: caloriesProgress + '%' }"></div>
-          </div>
-          <div class="macro-row">
-            <div class="macro" v-for="macro in macros" :key="macro.label">
-              <ion-icon :icon="macro.icon" />
-              <div class="macro-text">
-                <strong>{{ macro.consumed }}{{ macro.unit }}</strong>
-                <span>{{ macro.label }}</span>
-              </div>
-              <div class="macro-track">
-                <div class="macro-fill" :style="{ width: macro.progress + '%', background: macro.color }"></div>
-              </div>
+
+          <button class="today-meal-row" @click="router.push('/weekly-meal-plan')">
+            <img v-if="todayMeal" :src="todayMeal.image" :alt="todayMeal.name" class="today-meal-image" loading="lazy" />
+            <div v-else class="today-meal-placeholder">
+              <ion-icon :icon="calendarOutline" />
             </div>
-          </div>
+            <div class="today-meal-text">
+              <strong>{{ todayMeal ? todayMeal.name : $t('dashboard.noMealPlannedToday') }}</strong>
+              <span v-if="todayMeal" class="today-meal-kcal">
+                <ion-icon :icon="flameOutline" />
+                {{ t('dashboard.kcalCount', { count: todayMeal.calories }) }}
+              </span>
+              <span v-else>{{ $t('dashboard.noMealPlannedHint') }}</span>
+            </div>
+            <ion-icon :icon="chevronForwardOutline" class="today-meal-chevron" />
+          </button>
         </ion-card>
 
         <ion-card class="panel-card loyalty-panel">
@@ -221,15 +195,11 @@ import {
   alertCircleOutline,
   peopleOutline,
   fastFoodOutline,
-  walkOutline,
-  locationOutline,
   chevronForwardOutline,
   addCircleOutline,
   pieChartOutline,
   flameOutline,
-  barbellOutline,
-  leafOutline,
-  waterOutline,
+  calendarOutline,
   trophyOutline,
   giftOutline,
   notificationsOutline,
@@ -241,16 +211,8 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useProfile } from '@/composables/useProfile';
 import { useOrders } from '@/composables/useOrders';
 import { supabase } from '@/services/supabase';
+import { useWeeklyMealPlan } from '@/composables/useWeeklyMealPlan';
 import CartButton from '@/components/CartButton.vue';
-
-interface MacroItem {
-  label: string;
-  consumed: number;
-  unit: string;
-  progress: number;
-  color: string;
-  icon: string;
-}
 
 const router = useRouter();
 const { t } = useI18n();
@@ -420,19 +382,13 @@ const nextPickup = ref({
 
 const minutesToPickup = computed(() => nextPickup.value.minutesFromNow);
 
-const nutrition = ref({
-  calories: { consumed: 1450, goal: 2100 },
+const { days: weeklyPlanDays } = useWeeklyMealPlan();
+
+const todayMeal = computed(() => {
+  const todayDayOfWeek = ((now.value.getDay() + 6) % 7) + 1;
+  const mealId = weeklyPlanDays.find((d) => d.dayOfWeek === todayDayOfWeek)?.mealId;
+  return mealId ? findMeal(mealId) : undefined;
 });
-
-const caloriesProgress = computed(() =>
-  Math.min(100, Math.round((nutrition.value.calories.consumed / nutrition.value.calories.goal) * 100))
-);
-
-const macros = computed<MacroItem[]>(() => [
-  { label: t('dashboard.protein'), consumed: 62, unit: 'g', progress: 68, color: '#FF6B35', icon: barbellOutline },
-  { label: t('dashboard.carbs'), consumed: 145, unit: 'g', progress: 54, color: '#2EC4B6', icon: leafOutline },
-  { label: t('dashboard.fat'), consumed: 48, unit: 'g', progress: 72, color: '#5B8DEF', icon: waterOutline },
-]);
 
 const loyalty = ref({
   points: 480,
@@ -448,10 +404,6 @@ function goToMenu() {
 
 function goToItem(id: number) {
   router.push(`/item/${id}`);
-}
-
-function goToOrders() {
-  router.push('/tabs/tab3');
 }
 </script>
 
@@ -1004,67 +956,76 @@ ion-card.panel-card {
   color: #ff3b30;
 }
 
-.pickup-countdown {
-  font-size: 12px;
-  font-weight: 700;
-  color: #ff6b35;
-  background: rgba(255, 107, 53, 0.12);
-  padding: 4px 10px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.pickup-body {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pickup-time,
-.pickup-location {
+.today-meal-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  border: none;
+  border-radius: 16px;
+  background: var(--ion-color-step-50, #f4f5f8);
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 
-.pickup-time ion-icon,
-.pickup-location ion-icon {
-  font-size: 18px;
-  color: var(--ion-color-medium);
+.today-meal-image {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
 }
 
-.primary-btn {
+.today-meal-placeholder {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 100%;
-  margin-top: 16px;
-  padding: 12px;
-  border: none;
-  border-radius: 14px;
-  background: #ff6b35;
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.nutrition-calories {
-  margin-top: 14px;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.nutrition-calories strong {
+  background: rgba(255, 107, 53, 0.1);
+  color: #ff6b35;
   font-size: 22px;
 }
 
-.nutrition-calories span {
-  font-size: 13px;
+.today-meal-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.today-meal-text strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-meal-text span {
+  font-size: 12px;
   color: var(--ion-color-medium);
+}
+
+.today-meal-kcal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.today-meal-kcal ion-icon {
+  font-size: 13px;
+}
+
+.today-meal-chevron {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--ion-color-step-300, #ccc);
 }
 
 .progress-track {
@@ -1084,51 +1045,6 @@ ion-card.panel-card {
 
 .loyalty-fill {
   background: linear-gradient(90deg, #8a5cf6, #ff6b35);
-}
-
-.macro-row {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.macro {
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  column-gap: 10px;
-  row-gap: 6px;
-  align-items: center;
-}
-
-.macro > ion-icon {
-  font-size: 18px;
-  color: var(--ion-color-medium);
-}
-
-.macro-text {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.macro-text span {
-  color: var(--ion-color-medium);
-}
-
-.macro-track {
-  grid-column: 2 / 3;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ion-color-step-150, #e8e8e8);
-  overflow: hidden;
-}
-
-.macro-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.3s ease;
 }
 
 .loyalty-points {

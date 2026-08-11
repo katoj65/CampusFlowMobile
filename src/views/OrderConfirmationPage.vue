@@ -42,7 +42,7 @@
       </div>
 
       <div class="confirm-footer">
-        <button class="track-btn" @click="router.replace('/tabs/tab3')">
+        <button class="track-btn" @click="router.replace(`/order-tracking/${order.id}`)">
           <ion-icon :icon="receiptOutline" />
           {{ $t('confirmation.trackOrder') }}
         </button>

@@ -55,6 +55,10 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/OrderConfirmationPage.vue')
   },
   {
+    path: '/order-tracking/:id',
+    component: () => import('@/views/OrderTrackingPage.vue')
+  },
+  {
     path: '/notifications',
     component: () => import('@/views/NotificationsPage.vue')
   },

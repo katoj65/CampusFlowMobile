@@ -26,6 +26,7 @@ export interface ActiveOrder {
 export interface PastOrder {
   id: number;
   date: string;
+  placedAt: string;
   pickupSlot: string;
   items: OrderItem[];
   total: number;
@@ -101,6 +102,7 @@ async function fetchOrders() {
     historyEntries.push({
       id: row.id,
       date: formatOrderDate(row.placed_at),
+      placedAt: row.placed_at,
       pickupSlot: row.pickup_slot,
       items: await loadItemsFor(row.id),
       total: row.total,
@@ -172,11 +174,37 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
   return newActive;
 }
 
-async function cancelActiveOrder() {
-  if (!activeOrder.value) return;
-  const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', activeOrder.value.id);
+/** Loads a single order by id for the order tracking page — independent of
+ * activeOrder/orderHistory since a tracked order may be in any status. */
+async function fetchOrderById(id: number): Promise<ActiveOrder | null> {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return null;
+
+  const { data: row } = await supabase.from('orders').select('*').eq('id', id).eq('user_id', userData.user.id).single();
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    placedAt: formatPlacedAt(row.placed_at),
+    pickupSlot: row.pickup_slot,
+    location: locationLabel(row.pickup_location_id),
+    status: row.status,
+    items: await loadItemsFor(row.id),
+    total: row.total,
+    paymentMethod: row.payment_method,
+    code: row.code,
+  };
+}
+
+async function cancelOrder(id: number) {
+  const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', id);
   if (error) throw new Error(error.message);
   await fetchOrders();
+}
+
+async function cancelActiveOrder() {
+  if (!activeOrder.value) return;
+  await cancelOrder(activeOrder.value.id);
 }
 
 export function useOrders() {
@@ -186,5 +214,5 @@ export function useOrders() {
       if (userData.user) subscribeToOrders(userData.user.id);
     });
   }
-  return { activeOrder, orderHistory, placeOrder, cancelActiveOrder, fetchOrders };
+  return { activeOrder, orderHistory, placeOrder, cancelActiveOrder, cancelOrder, fetchOrderById, fetchOrders };
 }
