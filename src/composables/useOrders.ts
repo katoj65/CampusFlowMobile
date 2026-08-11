@@ -161,11 +161,19 @@ function subscribeToOrders(userId: string) {
  * total, order, and order_items all come from the user's cart_items rows
  * server-side in one transaction (and cart_items gets cleared there too),
  * rather than the client computing the total and making two separate
- * inserts that could leave a dangling empty order if the second failed. */
+ * inserts that could leave a dangling empty order if the second failed.
+ * See supabase/migrations/0031_place_order_comments.sql for that function's
+ * own step-by-step comments (total = qty*unit_price + extras_total_price
+ * per cart line, computed server-side from the real cart_items rows). */
 async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<ActiveOrder> {
+  // Step 1: a pickup location must be selected before we can check out —
+  // the RPC has no fallback for it.
   const { selectedLocationId } = usePickupLocation();
   if (!selectedLocationId.value) throw new Error('No pickup location selected');
 
+  // Step 2: hand off to place_order() — this single call does everything
+  // (compute total, insert orders + order_items, clear cart_items) and
+  // returns the new orders row.
   const { data: order, error } = await supabase.rpc('place_order', {
     p_pickup_location_id: selectedLocationId.value,
     p_pickup_slot: pickupSlot,
@@ -173,6 +181,13 @@ async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<Ac
   });
   if (error || !order) throw new Error(error?.message ?? 'Could not place order');
 
+  // Step 3: the RPC only returns the orders row, not its items — fetch
+  // those separately so the confirmation screen has something to show.
+  const items = await loadItemsFor(order.id);
+
+  // Step 4: update local state immediately (rather than waiting on the
+  // orders-changes Realtime subscription to refetch) so the confirmation
+  // screen has data to render the moment this function resolves.
   const newActive: ActiveOrder = {
     id: order.id,
     placedAt: formatPlacedAt(order.placed_at),
@@ -180,7 +195,7 @@ async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<Ac
     pickupSlot: order.pickup_slot,
     location: locationLabel(order.pickup_location_id),
     status: order.status,
-    items: await loadItemsFor(order.id),
+    items,
     total: order.total,
     paymentMethod: order.payment_method,
     code: order.code,
