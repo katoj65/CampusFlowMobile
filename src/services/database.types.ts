@@ -93,7 +93,7 @@ export interface Database {
         Relationships: [];
       };
       meal_extras: {
-        Row: { id: number; label: string; price_delta: number };
+        Row: { id: number; label: string; price_delta: number; university_id: number };
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];

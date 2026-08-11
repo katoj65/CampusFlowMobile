@@ -71,14 +71,6 @@ async function fetchMenu() {
     }));
     categories.splice(0, categories.length, ...mappedCategories);
 
-    const { data: extraRows } = await supabase.from('meal_extras').select('*').order('id');
-    const mappedExtras: PriceOption[] = (extraRows ?? []).map((row) => ({
-      id: String(row.id),
-      label: row.label,
-      priceDelta: row.price_delta,
-    }));
-    extras.splice(0, extras.length, ...mappedExtras);
-
     let universityId: number | null = null;
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) {
@@ -90,9 +82,13 @@ async function fetchMenu() {
       universityId = profile?.university_id ?? null;
     }
 
-    const mealRows = universityId ? await fetchMealsFor(universityId) : [];
+    const [mealRows, extraRows] = await Promise.all([
+      universityId ? fetchMealsFor(universityId) : Promise.resolve([]),
+      universityId ? fetchExtrasFor(universityId) : Promise.resolve([]),
+    ]);
 
     meals.splice(0, meals.length, ...mealRows);
+    extras.splice(0, extras.length, ...extraRows);
     loaded.value = true;
   } finally {
     loading.value = false;
@@ -102,6 +98,11 @@ async function fetchMenu() {
 async function fetchMealsFor(universityId: number) {
   const { data } = await supabase.from('meals').select('*').eq('university_id', universityId).order('id');
   return (data ?? []).map(mapMeal);
+}
+
+async function fetchExtrasFor(universityId: number): Promise<PriceOption[]> {
+  const { data } = await supabase.from('meal_extras').select('*').eq('university_id', universityId).order('id');
+  return (data ?? []).map((row) => ({ id: String(row.id), label: row.label, priceDelta: row.price_delta }));
 }
 
 function findMeal(id: number): MealItem | undefined {
