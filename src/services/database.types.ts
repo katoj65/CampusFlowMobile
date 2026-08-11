@@ -130,6 +130,8 @@ export interface Database {
           qty: number;
           unit_price: number;
           summary: string;
+          extras: string[];
+          extras_total_price: number;
         };
         Insert: {
           order_id: number;
@@ -138,6 +140,8 @@ export interface Database {
           qty: number;
           unit_price: number;
           summary: string;
+          extras: string[];
+          extras_total_price: number;
         };
         Update: Record<string, never>;
         Relationships: [];
@@ -228,6 +232,8 @@ export interface Database {
           unit_price: number;
           qty: number;
           summary: string;
+          extras: string[];
+          extras_total_price: number;
           created_at: string;
           updated_at: string;
         };
@@ -239,6 +245,8 @@ export interface Database {
           unit_price: number;
           qty: number;
           summary?: string;
+          extras?: string[];
+          extras_total_price?: number;
         };
         Update: Partial<{ qty: number; updated_at: string }>;
         Relationships: [];

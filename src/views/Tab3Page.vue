@@ -367,6 +367,8 @@ async function onReorder(order: PastOrder) {
           unitPrice: item.price,
           qty: item.qty,
           summary: '',
+          extras: [],
+          extrasTotal: 0,
         })
       )
     );

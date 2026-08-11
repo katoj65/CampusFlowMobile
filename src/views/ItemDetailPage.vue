@@ -213,6 +213,11 @@ const unitPrice = computed(() => {
 
 const totalPrice = computed(() => unitPrice.value * qty.value);
 
+const selectedExtraOptions = computed(() =>
+  meal.value?.customizable ? extras.filter((e) => selectedExtras.value.has(e.id)) : []
+);
+const extrasTotal = computed(() => selectedExtraOptions.value.reduce((sum, e) => sum + e.priceDelta, 0));
+
 const customizationSummary = computed(() => {
   if (!meal.value || !meal.value.customizable) return '';
   const parts: string[] = [];
@@ -246,6 +251,8 @@ function onAddToCart() {
       unitPrice: unitPrice.value,
       qty: qty.value,
       summary: customizationSummary.value,
+      extras: selectedExtraOptions.value.map((e) => e.label),
+      extrasTotal: extrasTotal.value,
     })
     .catch(() => {});
   toastMessage.value = t('item.addedToCart', { name: meal.value.name });

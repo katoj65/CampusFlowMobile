@@ -9,6 +9,8 @@ export interface CartLine {
   unitPrice: number;
   qty: number;
   summary: string;
+  extras: string[];
+  extrasTotal: number;
 }
 
 const lines = reactive<CartLine[]>([]);
@@ -49,6 +51,8 @@ async function fetchCart() {
       unitPrice: row.unit_price,
       qty: row.qty,
       summary: row.summary,
+      extras: row.extras,
+      extrasTotal: row.extras_total_price,
     }))
   );
   loaded.value = true;
@@ -80,6 +84,8 @@ async function addToCart(line: Omit<CartLine, 'lineId'>) {
       unit_price: line.unitPrice,
       qty: line.qty,
       summary: line.summary,
+      extras: line.extras,
+      extras_total_price: line.extrasTotal,
     })
     .select()
     .single();

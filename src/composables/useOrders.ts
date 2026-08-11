@@ -181,6 +181,8 @@ async function placeOrder(cartLines: CartLine[], pickupSlot: string, paymentMeth
     qty: line.qty,
     unit_price: line.unitPrice,
     summary: line.summary,
+    extras: line.extras,
+    extras_total_price: line.extrasTotal,
   }));
   const { error: itemsError } = await supabase.from('order_items').insert(itemRows);
   if (itemsError) throw new Error(itemsError.message);
