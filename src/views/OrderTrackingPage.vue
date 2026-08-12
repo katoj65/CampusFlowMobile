@@ -43,7 +43,7 @@
           <div class="panel-header">
             <div>
               <h2>{{ t('dashboard.orderNumber', { id: order.id }) }}</h2>
-              <p class="panel-sub">{{ t('orders.placedAt', { time: order.placedAt }) }}</p>
+              <p class="panel-sub">{{ order.date }}</p>
             </div>
             <span class="status-badge" :class="`status-${order.status}`">
               {{ statusLabel(order.status) }}

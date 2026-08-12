@@ -16,6 +16,7 @@ export interface OrderItem {
 
 export interface ActiveOrder {
   id: number;
+  date: string;
   placedAt: string;
   placedAtIso: string;
   pickupSlot: string;
@@ -135,6 +136,7 @@ async function fetchOrders() {
   if (active) {
     activeOrder.value = {
       id: active.id,
+      date: formatOrderDate(active.placed_at),
       placedAt: formatPlacedAt(active.placed_at),
       placedAtIso: active.placed_at,
       pickupSlot: active.pickup_slot,
@@ -219,6 +221,7 @@ async function placeOrder(pickupSlot: string, pickupSlotEndIso: string, paymentM
   // screen has data to render the moment this function resolves.
   const newActive: ActiveOrder = {
     id: order.id,
+    date: formatOrderDate(order.placed_at),
     placedAt: formatPlacedAt(order.placed_at),
     placedAtIso: order.placed_at,
     pickupSlot: order.pickup_slot,
@@ -245,6 +248,7 @@ async function fetchOrderById(id: number): Promise<ActiveOrder | null> {
 
   return {
     id: row.id,
+    date: formatOrderDate(row.placed_at),
     placedAt: formatPlacedAt(row.placed_at),
     placedAtIso: row.placed_at,
     pickupSlot: row.pickup_slot,
