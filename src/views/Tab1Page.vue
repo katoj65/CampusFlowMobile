@@ -64,35 +64,7 @@
       </section>
 
       <div class="dashboard-body">
-        <ion-card class="panel-card queue-panel">
-          <div class="panel-header">
-            <div>
-              <h2>{{ $t('dashboard.liveQueueStatus') }}</h2>
-              <p class="panel-sub">{{ $t('dashboard.mensaGroundFloor') }}</p>
-            </div>
-            <span class="live-dot"><span class="live-dot-core"></span>{{ $t('dashboard.live') }}</span>
-          </div>
-
-          <div class="queue-summary">
-            <span class="queue-level-badge" :class="queueChipClass">
-              <ion-icon :icon="peopleOutline" />
-              {{ queueLevelLabel }}
-            </span>
-            <span class="queue-wait">
-              <ion-icon :icon="hourglassOutline" />
-              {{ t('dashboard.waitMinutes', { minutes: queue.estimateMinutes }) }}
-            </span>
-          </div>
-          <div class="queue-meter-track">
-            <div class="queue-meter-fill" :class="queueChipClass" :style="{ width: queueMeterWidth }"></div>
-          </div>
-
-          <div class="queue-pickup-row" v-if="latestOrder">
-            <ion-icon :icon="timeOutline" />
-            <span class="queue-pickup-slot">{{ t('dashboard.pickupAt', { slot: latestOrder.pickupSlot }) }}</span>
-            <span class="queue-pickup-eta">{{ t('dashboard.inMinutes', { minutes: minutesToPickup }) }}</span>
-          </div>
-        </ion-card>
+        <LiveQueueStatus />
 
         <section class="section-block">
           <div class="section-header">
@@ -230,16 +202,16 @@ import {
   trophyOutline,
   giftOutline,
   notificationsOutline,
-  hourglassOutline,
 } from 'ionicons/icons';
 import { useMenu } from '@/composables/useMenu';
 import { formatCurrency } from '@/utils/currency';
 import { useNotifications } from '@/composables/useNotifications';
 import { useProfile } from '@/composables/useProfile';
-import { useOrders } from '@/composables/useOrders';
+import { useQueueStatus } from '@/composables/useQueueStatus';
 import { supabase } from '@/services/supabase';
 import { useWeeklyMealPlan } from '@/composables/useWeeklyMealPlan';
 import CartButton from '@/components/CartButton.vue';
+import LiveQueueStatus from '@/components/LiveQueueStatus.vue';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -361,28 +333,9 @@ const closingInLabel = computed(() => {
   return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
 });
 
-const queue = ref<{ level: 'Low' | 'Moderate' | 'High'; levelIndex: number; estimateMinutes: number }>({
-  level: 'Moderate',
-  levelIndex: 2,
-  estimateMinutes: 8,
-});
-
-const queueLevelLabel = computed(() => {
-  if (queue.value.level === 'Low') return t('dashboard.queueLow');
-  if (queue.value.level === 'High') return t('dashboard.queueHigh');
-  return t('dashboard.queueModerate');
-});
-
-const queueChipClass = computed(() => ({
-  'chip-low': queue.value.level === 'Low',
-  'chip-moderate': queue.value.level === 'Moderate',
-  'chip-high': queue.value.level === 'High',
-}));
-
-const queueMeterWidth = computed(() => `${(queue.value.levelIndex / 3) * 100}%`);
-
-const { orderHistory } = useOrders();
-const latestOrder = computed(() => orderHistory[0] ?? null);
+// queueLevelLabel/queueChipClass drive the small hero chip below — the
+// full Live Queue Status panel is its own component (see LiveQueueStatus.vue).
+const { queueLevelLabel, queueChipClass } = useQueueStatus();
 
 const { meals: menuItems, findMeal, loading: menuLoading } = useMenu();
 const special = computed(() => findMeal(3));
@@ -398,16 +351,6 @@ const meals = computed(() => ({
   left: menuItems.reduce((sum, meal) => sum + meal.available, 0),
   lowThreshold: 10,
 }));
-
-const nextPickup = ref({
-  orderId: '10482',
-  slotStart: '12:45 PM',
-  slotEnd: '1:00 PM',
-  location: 'Mensa Ground Floor, Counter 2',
-  minutesFromNow: 18,
-});
-
-const minutesToPickup = computed(() => nextPickup.value.minutesFromNow);
 
 const { days: weeklyPlanDays } = useWeeklyMealPlan();
 
@@ -727,115 +670,6 @@ ion-card.panel-card {
   100% {
     box-shadow: 0 0 0 0 rgba(46, 196, 182, 0);
   }
-}
-
-.queue-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.queue-level-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.queue-level-badge ion-icon {
-  font-size: 14px;
-}
-
-.queue-level-badge.chip-low {
-  background: rgba(46, 196, 182, 0.14);
-  color: #229c92;
-}
-
-.queue-level-badge.chip-moderate {
-  background: rgba(255, 159, 28, 0.16);
-  color: #c47712;
-}
-
-.queue-level-badge.chip-high {
-  background: rgba(255, 59, 48, 0.14);
-  color: #d63127;
-}
-
-.queue-wait {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ion-color-medium);
-}
-
-.queue-wait ion-icon {
-  font-size: 14px;
-}
-
-.queue-meter-track {
-  margin-top: 10px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ion-color-step-150, #e8e8e8);
-  overflow: hidden;
-}
-
-.queue-meter-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.3s ease;
-  background: #ff9f1c;
-}
-
-.queue-meter-fill.chip-low {
-  background: #2ec4b6;
-}
-
-.queue-meter-fill.chip-moderate {
-  background: #ff9f1c;
-}
-
-.queue-meter-fill.chip-high {
-  background: #ff3b30;
-}
-
-.queue-pickup-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--ion-color-step-50, #f4f5f8);
-  font-size: 13px;
-}
-
-.queue-pickup-row ion-icon {
-  font-size: 16px;
-  color: #ff6b35;
-  flex-shrink: 0;
-}
-
-.queue-pickup-slot {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.queue-pickup-eta {
-  flex-shrink: 0;
-  font-weight: 700;
-  color: #ff6b35;
 }
 
 .section-block {
