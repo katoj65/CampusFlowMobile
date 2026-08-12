@@ -2,7 +2,7 @@
   <ion-page>
     <ion-content :fullscreen="true" class="auth-content">
       <div class="stack-header">
-        <button class="back-btn" aria-label="Go back" @click="router.push('/login')">
+        <button class="back-btn" aria-label="Go back" @click="router.replace('/login')">
           <ion-icon :icon="chevronBackOutline" />
         </button>
       </div>
@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { IonPage, IonContent, IonIcon, IonToast, IonSpinner } from '@ionic/vue';
@@ -125,6 +125,24 @@ import { universities } from '@/data/universities';
 const router = useRouter();
 const auth = useAuth();
 const { t } = useI18n();
+
+/** Register can be reached via a few different paths (login, a bounced
+ * deep link, etc.) — regardless of that history, the hardware/system back
+ * button should always land on /login (this app's entry point) rather
+ * than replaying whatever came before, same as the on-screen back arrow. */
+function handleHardwareBack(ev: Event) {
+  (ev as CustomEvent).detail.register(10, () => {
+    router.replace('/login');
+  });
+}
+
+onMounted(() => {
+  document.addEventListener('ionBackButton', handleHardwareBack);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('ionBackButton', handleHardwareBack);
+});
 
 const firstName = ref('');
 const lastName = ref('');
