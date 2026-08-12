@@ -17,12 +17,12 @@
           <div class="option-row">
             <button
               v-for="slot in pickupSlots"
-              :key="slot"
+              :key="slot.label"
               class="option-chip"
-              :class="{ active: selectedSlot === slot }"
+              :class="{ active: selectedSlot.label === slot.label }"
               @click="selectedSlot = slot"
             >
-              {{ slot }}
+              {{ slot.label }}
             </button>
           </div>
           <p class="section-hint">
@@ -140,15 +140,23 @@ onMounted(() => {
   }
 });
 
-function generatePickupSlots(): string[] {
-  const slots: string[] = [];
+interface PickupSlotOption {
+  label: string;
+  /** Real end-of-window instant, stored on the order so the app can later
+   * tell whether "now" is past pickup — the label alone isn't safely
+   * parseable back into a comparable time. */
+  endIso: string;
+}
+
+function generatePickupSlots(): PickupSlotOption[] {
+  const slots: PickupSlotOption[] = [];
   const start = new Date();
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15 + 15, 0, 0);
   for (let i = 0; i < 4; i++) {
     const slotStart = new Date(start.getTime() + i * 15 * 60000);
     const slotEnd = new Date(slotStart.getTime() + 15 * 60000);
     const format = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    slots.push(`${format(slotStart)} – ${format(slotEnd)}`);
+    slots.push({ label: `${format(slotStart)} – ${format(slotEnd)}`, endIso: slotEnd.toISOString() });
   }
   return slots;
 }
@@ -200,7 +208,7 @@ async function onPlaceOrder() {
       : method.type === 'wallet'
         ? method.label
         : `${method.label} (${method.detail})`;
-    await orders.placeOrder(selectedSlot.value, paymentLabel);
+    await orders.placeOrder(selectedSlot.value.label, selectedSlot.value.endIso, paymentLabel);
     await cart.clearCart();
     router.replace('/order-confirmation');
   } catch (err) {

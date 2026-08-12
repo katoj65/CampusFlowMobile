@@ -56,6 +56,7 @@
     "mealsLeftToday": "Meals Left Today",
     "orderNumber": "Order #{id}",
     "inMinutes": "in {minutes} min",
+    "missedPickupTime": "You've missed your pickup time",
     "todaysNutrition": "Today's Nutrition",
     "fromWeeklyPlan": "From your weekly plan",
     "noMealPlannedToday": "No meal planned today",

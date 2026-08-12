@@ -105,6 +105,7 @@ export interface Database {
           status: 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
           pickup_location_id: number | null;
           pickup_slot: string;
+          pickup_slot_end: string | null;
           code: string;
           total: number;
           payment_method: string;
@@ -114,6 +115,7 @@ export interface Database {
           user_id: string;
           pickup_location_id: number | null;
           pickup_slot: string;
+          pickup_slot_end: string | null;
           code: string;
           total: number;
           payment_method: string;
@@ -271,13 +273,19 @@ export interface Database {
       wallet_withdraw: { Args: { p_amount: number; p_payment_method_id?: number | null }; Returns: number };
       wallet_pay: { Args: { p_amount: number; p_order_id?: number | null; p_note?: string | null }; Returns: number };
       place_order: {
-        Args: { p_pickup_location_id: number; p_pickup_slot: string; p_payment_method: string };
+        Args: {
+          p_pickup_location_id: number;
+          p_pickup_slot: string;
+          p_pickup_slot_end: string | null;
+          p_payment_method: string;
+        };
         Returns: {
           id: number;
           user_id: string;
           status: 'placed' | 'preparing' | 'ready' | 'picked_up' | 'cancelled';
           pickup_location_id: number | null;
           pickup_slot: string;
+          pickup_slot_end: string | null;
           code: string;
           total: number;
           placed_at: string;

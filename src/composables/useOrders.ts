@@ -19,6 +19,10 @@ export interface ActiveOrder {
   placedAt: string;
   placedAtIso: string;
   pickupSlot: string;
+  /** End of the pickup window, ISO — null for orders placed before this
+   * column existed. The real, comparable deadline behind `pickupSlot`'s
+   * display label. */
+  pickupSlotEndIso: string | null;
   location: string;
   status: OrderStatus;
   items: OrderItem[];
@@ -32,6 +36,7 @@ export interface PastOrder {
   date: string;
   placedAt: string;
   pickupSlot: string;
+  pickupSlotEndIso: string | null;
   items: OrderItem[];
   total: number;
   paymentMethod: string;
@@ -133,6 +138,7 @@ async function fetchOrders() {
       placedAt: formatPlacedAt(active.placed_at),
       placedAtIso: active.placed_at,
       pickupSlot: active.pickup_slot,
+      pickupSlotEndIso: active.pickup_slot_end,
       location: locationLabel(active.pickup_location_id),
       status: active.status,
       items: await loadItemsFor(active.id),
@@ -153,6 +159,7 @@ async function fetchOrders() {
       date: formatOrderDate(row.placed_at),
       placedAt: row.placed_at,
       pickupSlot: row.pickup_slot,
+      pickupSlotEndIso: row.pickup_slot_end,
       items: await loadItemsFor(row.id),
       total: row.total,
       paymentMethod: row.payment_method,
@@ -186,7 +193,7 @@ function subscribeToOrders(userId: string) {
  * See supabase/migrations/0031_place_order_comments.sql for that function's
  * own step-by-step comments (total = qty*unit_price + extras_total_price
  * per cart line, computed server-side from the real cart_items rows). */
-async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<ActiveOrder> {
+async function placeOrder(pickupSlot: string, pickupSlotEndIso: string, paymentMethod: string): Promise<ActiveOrder> {
   // Step 1: a pickup location must be selected before we can check out —
   // the RPC has no fallback for it.
   const { selectedLocationId } = usePickupLocation();
@@ -198,6 +205,7 @@ async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<Ac
   const { data: order, error } = await supabase.rpc('place_order', {
     p_pickup_location_id: selectedLocationId.value,
     p_pickup_slot: pickupSlot,
+    p_pickup_slot_end: pickupSlotEndIso,
     p_payment_method: paymentMethod,
   });
   if (error || !order) throw new Error(error?.message ?? 'Could not place order');
@@ -214,6 +222,7 @@ async function placeOrder(pickupSlot: string, paymentMethod: string): Promise<Ac
     placedAt: formatPlacedAt(order.placed_at),
     placedAtIso: order.placed_at,
     pickupSlot: order.pickup_slot,
+    pickupSlotEndIso: order.pickup_slot_end,
     location: locationLabel(order.pickup_location_id),
     status: order.status,
     items,
@@ -239,6 +248,7 @@ async function fetchOrderById(id: number): Promise<ActiveOrder | null> {
     placedAt: formatPlacedAt(row.placed_at),
     placedAtIso: row.placed_at,
     pickupSlot: row.pickup_slot,
+    pickupSlotEndIso: row.pickup_slot_end,
     location: locationLabel(row.pickup_location_id),
     status: row.status,
     items: await loadItemsFor(row.id),

@@ -56,6 +56,7 @@
     "mealsLeftToday": "Heute verbleibende Mahlzeiten",
     "orderNumber": "Bestellung #{id}",
     "inMinutes": "in {minutes} Min.",
+    "missedPickupTime": "Du hast deine Abholzeit verpasst",
     "todaysNutrition": "Heutige Nährwerte",
     "fromWeeklyPlan": "Aus deinem Wochenplan",
     "noMealPlannedToday": "Heute kein Gericht geplant",

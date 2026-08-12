@@ -22,37 +22,57 @@
       <div class="queue-meter-fill" :class="queueChipClass" :style="{ width: queueMeterWidth }"></div>
     </div>
 
-    <div class="queue-pickup-row" v-if="latestOrder">
-      <ion-icon :icon="timeOutline" />
-      <span class="queue-pickup-slot">{{ t('dashboard.pickupAt', { slot: latestOrder.pickupSlot }) }}</span>
-      <span class="queue-pickup-eta">{{ t('dashboard.inMinutes', { minutes: minutesToPickup }) }}</span>
+    <div class="queue-pickup-row" :class="{ missed: hasMissedPickup }" v-if="currentOrder">
+      <ion-icon :icon="hasMissedPickup ? alertCircleOutline : timeOutline" />
+      <span class="queue-pickup-slot">{{ t('dashboard.pickupAt', { slot: currentOrder.pickupSlot }) }}</span>
+      <span class="queue-pickup-eta" v-if="hasMissedPickup">{{ t('dashboard.missedPickupTime') }}</span>
+      <span class="queue-pickup-eta" v-else-if="minutesToPickup !== null">
+        {{ t('dashboard.inMinutes', { minutes: minutesToPickup }) }}
+      </span>
     </div>
   </ion-card>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { IonCard, IonIcon } from '@ionic/vue';
-import { peopleOutline, hourglassOutline, timeOutline } from 'ionicons/icons';
+import { peopleOutline, hourglassOutline, timeOutline, alertCircleOutline } from 'ionicons/icons';
 import { useOrders } from '@/composables/useOrders';
 import { useQueueStatus } from '@/composables/useQueueStatus';
 
 const { t } = useI18n();
 const { queue, queueLevelLabel, queueChipClass, queueMeterWidth } = useQueueStatus();
 
-const { orderHistory } = useOrders();
-const latestOrder = computed(() => orderHistory[0] ?? null);
+// The currently active order (placed/preparing/ready) — not order history,
+// since a past/cancelled order's pickup time is no longer relevant here.
+const { activeOrder } = useOrders();
+const currentOrder = computed(() => activeOrder.value);
 
-// Mock pickup ETA until this is backed by the real active order's pickup time.
-const nextPickup = ref({
-  orderId: '10482',
-  slotStart: '12:45 PM',
-  slotEnd: '1:00 PM',
-  location: 'Mensa Ground Floor, Counter 2',
-  minutesFromNow: 18,
+// Ticks every 30s so the "in X min" countdown and the missed-pickup switch
+// stay accurate without requiring a manual refresh.
+const now = ref(Date.now());
+let clockTimer: number | undefined;
+onMounted(() => {
+  clockTimer = window.setInterval(() => {
+    now.value = Date.now();
+  }, 30000);
 });
-const minutesToPickup = computed(() => nextPickup.value.minutesFromNow);
+onUnmounted(() => {
+  if (clockTimer) window.clearInterval(clockTimer);
+});
+
+const pickupDeadline = computed(() => {
+  const iso = currentOrder.value?.pickupSlotEndIso;
+  return iso ? new Date(iso).getTime() : null;
+});
+
+const hasMissedPickup = computed(() => pickupDeadline.value !== null && now.value > pickupDeadline.value);
+
+const minutesToPickup = computed(() => {
+  if (pickupDeadline.value === null) return null;
+  return Math.max(0, Math.round((pickupDeadline.value - now.value) / 60000));
+});
 </script>
 
 <style scoped>
@@ -219,5 +239,17 @@ ion-card.panel-card {
   flex-shrink: 0;
   font-weight: 700;
   color: #ff6b35;
+}
+
+.queue-pickup-row.missed {
+  background: rgba(255, 59, 48, 0.1);
+}
+
+.queue-pickup-row.missed ion-icon {
+  color: #ff3b30;
+}
+
+.queue-pickup-row.missed .queue-pickup-eta {
+  color: #ff3b30;
 }
 </style>
