@@ -61,6 +61,8 @@
         <div class="special-card special-skeleton" v-else-if="menuLoading">
           <ion-skeleton-text :animated="true" class="image-skeleton"></ion-skeleton-text>
         </div>
+
+        <AdvertBanner />
       </section>
 
       <div class="dashboard-body">
@@ -212,6 +214,7 @@ import { supabase } from '@/services/supabase';
 import { useWeeklyMealPlan } from '@/composables/useWeeklyMealPlan';
 import CartButton from '@/components/CartButton.vue';
 import LiveQueueStatus from '@/components/LiveQueueStatus.vue';
+import AdvertBanner from '@/components/AdvertBanner.vue';
 
 const router = useRouter();
 const { t } = useI18n();

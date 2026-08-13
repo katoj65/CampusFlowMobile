@@ -98,6 +98,25 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      /** Owned by a separate admin-panel project (not this repo's migrations) —
+       * only the student-facing select policy in 0045_adverts.sql belongs to us. */
+      adverts: {
+        Row: {
+          id: number;
+          university_id: number;
+          title: string;
+          description: string | null;
+          from_date: string;
+          to_date: string;
+          menu_id: number | null;
+          status: 'draft' | 'active' | 'expired';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: number;
