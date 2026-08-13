@@ -127,6 +127,7 @@ import {
   logOutOutline,
   calendarOutline,
   receiptOutline,
+  megaphoneOutline,
 } from 'ionicons/icons';
 import { useProfile } from '@/composables/useProfile';
 import { useAccount } from '@/composables/useAccount';
@@ -168,6 +169,7 @@ const accountItems = computed<SettingsItem[]>(() => [
   { key: 'transactions', label: t('wallet.transactions'), icon: receiptOutline, route: '/transactions' },
   { key: 'paymentMethods', label: t('profile.paymentMethods'), icon: cardOutline, route: '/payment-methods' },
   { key: 'notifications', label: t('profile.notifications'), icon: notificationsOutline, route: '/notifications' },
+  { key: 'adverts', label: t('adverts.title'), icon: megaphoneOutline, route: '/adverts' },
   { key: 'pickupLocation', label: t('profile.savedPickupLocation'), icon: locationOutline, route: '/pickup-location' },
   { key: 'language', label: t('profile.language'), icon: languageOutline, route: '/language' },
 ]);

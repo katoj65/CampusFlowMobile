@@ -275,6 +275,18 @@
     "crossContaminationDisclaimer": "Bestätige Allergeninformationen immer beim Mensa-Personal — wir können Kreuzkontamination nicht vollständig ausschließen.",
     "updateFailed": "Deine Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut."
   },
+  "adverts": {
+    "title": "Anzeigen",
+    "showOnDashboard": "Anzeigen auf dem Dashboard zeigen",
+    "showOnDashboardHint": "Deaktivieren, um das Anzeigenbanner auf der Startseite auszublenden.",
+    "allAdverts": "Alle Anzeigen",
+    "noAdverts": "Noch keine Anzeigen",
+    "noAdvertsHint": "Deine Universität hat noch keine Anzeigen veröffentlicht.",
+    "statusActive": "Aktiv",
+    "statusDraft": "Entwurf",
+    "statusExpired": "Abgelaufen",
+    "updateFailed": "Deine Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut."
+  },
   "weeklyPlan": {
     "title": "Wochenspeiseplan",
     "intro": "Wähle basierend auf dem Speiseplan deiner Schule aus, was du an jedem Wochentag essen möchtest, und lege fest, wann deine Bestellung aufgegeben werden soll.",

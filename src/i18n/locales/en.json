@@ -275,6 +275,18 @@
     "crossContaminationDisclaimer": "Always confirm allergen details with canteen staff — we can't guarantee zero cross-contamination.",
     "updateFailed": "Couldn't save your preference. Please try again."
   },
+  "adverts": {
+    "title": "Adverts",
+    "showOnDashboard": "Show adverts on dashboard",
+    "showOnDashboardHint": "Turn off to hide the advert banner on Home.",
+    "allAdverts": "All Adverts",
+    "noAdverts": "No adverts yet",
+    "noAdvertsHint": "Your university hasn't posted any adverts.",
+    "statusActive": "Active",
+    "statusDraft": "Draft",
+    "statusExpired": "Expired",
+    "updateFailed": "Couldn't save your preference. Please try again."
+  },
   "weeklyPlan": {
     "title": "Weekly Meal Plan",
     "intro": "Pick what you'd like to eat on each day of the week, based on your school's menu, and set when your order should go in.",

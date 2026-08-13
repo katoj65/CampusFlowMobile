@@ -1,37 +1,39 @@
 <template>
-  <button
-    v-if="latestAdvert?.meal"
-    class="advert-card advert-card-image"
-    @click="router.push(`/item/${latestAdvert.meal.id}`)"
-  >
-    <img :src="latestAdvert.meal.image" :alt="latestAdvert.meal.name" class="advert-image" loading="lazy" />
-    <div class="advert-scrim"></div>
-    <div class="advert-content">
-      <span class="advert-badge">
+  <template v-if="advertsEnabled">
+    <button
+      v-if="latestAdvert?.meal"
+      class="advert-card advert-card-image"
+      @click="router.push(`/item/${latestAdvert.meal.id}`)"
+    >
+      <img :src="latestAdvert.meal.image" :alt="latestAdvert.meal.name" class="advert-image" loading="lazy" />
+      <div class="advert-scrim"></div>
+      <div class="advert-content">
+        <span class="advert-badge">
+          <ion-icon :icon="megaphoneOutline" />
+          {{ $t('dashboard.advert') }}
+        </span>
+        <h3>{{ latestAdvert.title }}</h3>
+        <p v-if="latestAdvert.description">{{ latestAdvert.description }}</p>
+        <span class="advert-cta">
+          {{ $t('dashboard.viewItem') }}
+          <ion-icon :icon="chevronForwardOutline" />
+        </span>
+      </div>
+    </button>
+
+    <div v-else-if="latestAdvert" class="advert-card advert-card-plain">
+      <span class="advert-badge advert-badge-plain">
         <ion-icon :icon="megaphoneOutline" />
         {{ $t('dashboard.advert') }}
       </span>
       <h3>{{ latestAdvert.title }}</h3>
       <p v-if="latestAdvert.description">{{ latestAdvert.description }}</p>
-      <span class="advert-cta">
-        {{ $t('dashboard.viewItem') }}
-        <ion-icon :icon="chevronForwardOutline" />
-      </span>
     </div>
-  </button>
 
-  <div v-else-if="latestAdvert" class="advert-card advert-card-plain">
-    <span class="advert-badge advert-badge-plain">
-      <ion-icon :icon="megaphoneOutline" />
-      {{ $t('dashboard.advert') }}
-    </span>
-    <h3>{{ latestAdvert.title }}</h3>
-    <p v-if="latestAdvert.description">{{ latestAdvert.description }}</p>
-  </div>
-
-  <div v-else-if="loading" class="advert-card advert-card-skeleton">
-    <ion-skeleton-text :animated="true" class="advert-skeleton-fill"></ion-skeleton-text>
-  </div>
+    <div v-else-if="loading" class="advert-card advert-card-skeleton">
+      <ion-skeleton-text :animated="true" class="advert-skeleton-fill"></ion-skeleton-text>
+    </div>
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -41,7 +43,7 @@ import { megaphoneOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useAdverts } from '@/composables/useAdverts';
 
 const router = useRouter();
-const { latestAdvert, loading } = useAdverts();
+const { latestAdvert, loading, advertsEnabled } = useAdverts();
 </script>
 
 <style scoped>

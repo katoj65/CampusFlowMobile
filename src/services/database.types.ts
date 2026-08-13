@@ -21,6 +21,7 @@ export interface Database {
           allergies: string[];
           weekly_order_time: string;
           university_id: number | null;
+          advert_status: 'shown' | 'hidden';
           member_since: string;
           updated_at: string;
         };
@@ -35,6 +36,7 @@ export interface Database {
           allergies: string[];
           weekly_order_time: string;
           university_id: number | null;
+          advert_status: 'shown' | 'hidden';
           updated_at: string;
         }>;
         Relationships: [];
@@ -94,6 +96,12 @@ export interface Database {
       };
       meal_extras: {
         Row: { id: number; label: string; price_delta: number; university_id: number };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      fees: {
+        Row: { id: number; title: string; description: string; fee: number; tag: string; created_at: string };
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];
