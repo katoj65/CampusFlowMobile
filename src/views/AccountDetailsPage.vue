@@ -122,12 +122,13 @@ import {
 } from 'ionicons/icons';
 import { useAccount } from '@/composables/useAccount';
 import { useLanguage } from '@/composables/useLanguage';
-import { universities } from '@/data/universities';
+import { useUniversities } from '@/composables/useUniversities';
 
 const router = useRouter();
 const { account, updateAccount } = useAccount();
 const { t } = useI18n();
 const { locale, setLocale, availableLocales } = useLanguage();
+const { universities } = useUniversities();
 
 const form = reactive({
   name: account.name,
