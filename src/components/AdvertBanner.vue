@@ -29,21 +29,17 @@
       <h3>{{ latestAdvert.title }}</h3>
       <p v-if="latestAdvert.description">{{ latestAdvert.description }}</p>
     </div>
-
-    <div v-else-if="loading" class="advert-card advert-card-skeleton">
-      <ion-skeleton-text :animated="true" class="advert-skeleton-fill"></ion-skeleton-text>
-    </div>
   </template>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { IonIcon, IonSkeletonText } from '@ionic/vue';
+import { IonIcon } from '@ionic/vue';
 import { megaphoneOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useAdverts } from '@/composables/useAdverts';
 
 const router = useRouter();
-const { latestAdvert, loading, advertsEnabled } = useAdverts();
+const { latestAdvert, advertsEnabled } = useAdverts();
 </script>
 
 <style scoped>
@@ -164,14 +160,4 @@ const { latestAdvert, loading, advertsEnabled } = useAdverts();
   color: rgba(255, 255, 255, 0.9);
 }
 
-.advert-card-skeleton {
-  height: 150px;
-}
-
-.advert-skeleton-fill {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  border-radius: 0;
-}
 </style>
